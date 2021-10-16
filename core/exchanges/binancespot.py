@@ -6,6 +6,8 @@ import time
 from decimal import *
 
 class BinanceSpot:
+    apiKey = None
+    apiSecret = None
     historic = {}
 
     feesRate = Decimal(0.1/100)

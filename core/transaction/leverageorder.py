@@ -10,14 +10,15 @@ class LeverageOrder(Order):
     __TYPE_ALLOWED = ["long", "short", "close", "liquidate"]
     __leverage = None
     __percentToClose = 100
+    __linkedOrdersIds = []
 
     
 
-    def __init__(self, leverage, type, amount, price, time) -> None:
+    def __init__(self, id, leverage, type, amount, price, time) -> None:
         if type not in self.__TYPE_ALLOWED:
             raise Exception("Class LeverageOrder accept only these values for argument 'type' : " + ", ".join(self.__TYPE_ALLOWED))
         self.__leverage = leverage
-        super().__init__(type, amount, price, time, False)
+        super().__init__(id, type, amount, price, time, False)
 
     @property
     def leverage(self):
@@ -34,6 +35,13 @@ class LeverageOrder(Order):
         if self.type == LeverageOrder.ORDER_TYPE_SHORT:
             return self.price + (self.price / self.__leverage)
         return None
+
+    @property
+    def linkedOrdersIds(self):
+        return self.__linkedOrdersIds
+
+    def addLinkedOrder(self, orderId):
+        self.__linkedOrdersIds.append(orderId)
 
     def close(self, percent=100):
         if percent > self.percentToClose:

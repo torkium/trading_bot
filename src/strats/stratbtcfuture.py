@@ -66,7 +66,7 @@ class StratBtcFuture(AbstractStratFutures):
                 return 100
         return 0
     
-    def stopLossLongPrice(self, index):
+    def stopLossLongPrice(self):
         """
         To determine stop loss price for long order
         Must return the price to stop loss, or none
@@ -75,7 +75,7 @@ class StratBtcFuture(AbstractStratFutures):
         stopLossPercent = 3
         return self.orderInProgress.price - self.orderInProgress.price*stopLossPercent/100
     
-    def stopLossShortPrice(self, index):
+    def stopLossShortPrice(self):
         """
         To determine stop loss price for short order
         Must return the price to stop loss, or none

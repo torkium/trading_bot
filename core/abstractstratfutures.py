@@ -2,6 +2,7 @@ from core.abstractstrat import AbstractStrat
 from core.transaction.leverageorder import LeverageOrder
 from core.abstractindicators import AbstractIndicators
 from decimal import *
+from datetime import datetime
 
 class AbstractStratFutures(AbstractStrat):
     leverage = None
@@ -16,6 +17,8 @@ class AbstractStratFutures(AbstractStrat):
     def run(self, client, apiKey, apiSecret):
         #TODO : wallet need to be changed when we place order
         self.client = client(apiKey, apiSecret)
+        self.exchange.apiKey = apiKey
+        self.exchange.apiSecret = apiSecret
         self.exchange.historic[self.mainTimeFrame] = self.exchange.getHistoric(self.tradingCurrency, self.baseCurrency, self.mainTimeFrame, self.exchange.getStartHistory(self.mainTimeFrame, AbstractIndicators.MAX_PERIOD)).tail(AbstractIndicators.MAX_PERIOD)
         self.startWallet = self.wallet.getTotalAmount(self.exchange.historic[self.mainTimeFrame]['open'].iloc[0])
         self.minWallet = self.startWallet
@@ -37,12 +40,14 @@ class AbstractStratFutures(AbstractStrat):
         if self.orderInProgress != None:
             stopLossHitted = False
             if self.orderInProgress.type == LeverageOrder.ORDER_TYPE_LONG:
-                stopLossHitted = self.stopLossLongPrice(currentIndex) >= self.exchange.historic[self.mainTimeFrame]['close'][currentIndex]
+                stopLossHitted = self.stopLossLongPrice() >= self.exchange.historic[self.mainTimeFrame]['close'][currentIndex]
             if self.orderInProgress.type == LeverageOrder.ORDER_TYPE_SHORT:
-                stopLossHitted = self.stopLossShortPrice(currentIndex) <= self.exchange.historic[self.mainTimeFrame]['close'][currentIndex]
+                stopLossHitted = self.stopLossShortPrice() <= self.exchange.historic[self.mainTimeFrame]['close'][currentIndex]
+            if self.exchange.hasOpenedPositions(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency)):
+                stopLossHitted = True
             if stopLossHitted:
                 print("Order " + self.orderInProgress.id + " is closed because stop loss is hitted")
-                self.exchange.closeOrder(self.orderInProgress.id)
+                self.exchange.closeOpenedPositions(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.linkedOrdersIds())
                 self.orderInProgress = None
                 return None
         #apply strat
@@ -54,11 +59,19 @@ class AbstractStratFutures(AbstractStrat):
                     #Open Long order
                     amount = Decimal(self.wallet.base * longCondition / 100) / self.exchange.historic[self.mainTimeFrame]['close'][currentIndex]
                     order = self.exchange.longOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), amount, self.leverage)
+                    self.orderInProgress = LeverageOrder(order["orderId"], self.leverage, LeverageOrder.ORDER_TYPE_LONG, order["origQty"], self.exchange.historic[self.mainTimeFrame]['close'][currentIndex], datetime.now())
+                    if self.stopLossLongPrice() != None:
+                        stopLossOrder = self.exchange.stopLossLongOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.amount, self.stopLossLongPrice())
+                        self.orderInProgress.addLinkedOrder(stopLossOrder["orderId"])
                     return None
                 if longCondition == 0 and shortCondition > 0:
                     #Open Short order
                     amount = Decimal(self.wallet.base * shortCondition / 100) / self.exchange.historic[self.mainTimeFrame]['close'][currentIndex]
                     order = self.exchange.shortOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), amount, self.leverage)
+                    self.orderInProgress = LeverageOrder(order["orderId"], self.leverage, LeverageOrder.ORDER_TYPE_SHORT, order["origQty"], self.exchange.historic[self.mainTimeFrame]['close'][currentIndex], datetime.now())
+                    if self.stopLossShortPrice() != None:
+                        stopLossOrder = self.exchange.stopLossShortOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.amount, self.stopLossShortPrice())
+                        self.orderInProgress.addLinkedOrder(stopLossOrder["orderId"])
                     return None
 
             else:
@@ -67,16 +80,16 @@ class AbstractStratFutures(AbstractStrat):
                     longCloseCondition = self.longCloseConditions(currentIndex)
                     if longCloseCondition>0:
                         #Close long order
-                        order = self.exchange.closeOrder(self.orderInProgress.id)
-                        print("Order " + self.orderInProgress.id + " is closed because close long condition is hitted")
+                        order = self.exchange.closeLongOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.id, self.orderInProgress.amount)
+                        self.exchange.closeOpenedPositions(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.linkedOrdersIds)
                         self.orderInProgress = None
                         return None
                 if self.orderInProgress.type == LeverageOrder.ORDER_TYPE_SHORT:
                     shortCloseCondition = self.shortCloseConditions(currentIndex)
                     if shortCloseCondition>0:
                         #Close short order
-                        order = self.exchange.closeOrder(self.orderInProgress.id)
-                        print("Order " + self.orderInProgress.id + " is closed because close long condition is hitted")
+                        order = self.exchange.closeShortOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.id, self.orderInProgress.amount)
+                        self.exchange.closeOpenedPositions(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.linkedOrdersIds)
                         self.orderInProgress = None
                         return None
                 return None
@@ -120,14 +133,14 @@ class AbstractStratFutures(AbstractStrat):
         """
         return 100
     
-    def stopLossLongPrice(self, index):
+    def stopLossLongPrice(self):
         """
         To determine stop loss condition for long order
         Must return the price to stop loss, or none
         """
         return None
     
-    def stopLossShortPrice(self, index):
+    def stopLossShortPrice(self):
         """
         To determine stop loss condition for short order
         Must return the price to stop loss, or none
