@@ -88,9 +88,9 @@ class BinanceSpot:
             return (timestamp-maxPeriod*86400*7)*1000
 
     @staticmethod
-    def waitNewCandle(callback, devise, timeframe, apiKey, apiSecret):
+    def waitNewCandle(callback, devise, timeframe):
         # open websocket
-        twm = ThreadedWebsocketManager(api_key=apiKey, api_secret=apiSecret, testnet=False)
+        twm = ThreadedWebsocketManager(api_key=BinanceSpot.apiKey, api_secret=BinanceSpot.apiSecret, testnet=False)
         twm.start()
         twm.start_kline_socket(callback=callback, symbol=devise, interval=timeframe)
         twm.join()

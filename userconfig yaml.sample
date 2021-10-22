@@ -1,3 +1,14 @@
-binance_futures:
-  api_key: <Your binance futures API KEY>
-  api_secret: <Your binance futures API SECRET>
+strat:
+  base_currency: <Your strat base currency>
+  trade_currency: <Your strat trade currency>
+  wallet:
+    base: <Your strat wallet base>
+    trade: <Your strat wallet trade>
+  leverage:
+    <Your strat leverage>
+  timeframe: <Your strat timeframe>
+logs:
+  level: <Your lo level (0 to 3)>
+api:
+  key: <Your API KEY>
+  secret: <Your API SECRET>

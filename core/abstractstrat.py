@@ -1,6 +1,7 @@
 from core.wallet import Wallet
 from core.abstractindicators import AbstractIndicators
 from decimal import *
+from core.tools.logger import Logger
 
 class AbstractStrat:
     exchange = False
@@ -23,14 +24,14 @@ class AbstractStrat:
     maxDrawdown = None
     totalFees = None
 
-    def __init__(self, exchange, baseCurrency, tradingCurrency, base, trade, mainTimeFrame):
+    def __init__(self, exchange, userConfig):
         self.exchange = exchange
-        self.mainTimeFrame = mainTimeFrame
-        self.wallet = Wallet(baseCurrency, tradingCurrency, base, trade)
-        self.baseCurrency = baseCurrency
-        self.tradingCurrency = tradingCurrency
-        self.base = base
-        self.trade = trade
+        self.mainTimeFrame = userConfig.strat['timeframe']
+        self.baseCurrency = userConfig.strat['base_currency']
+        self.tradingCurrency = userConfig.strat['trade_currency']
+        self.base = userConfig.strat['wallet']['base']
+        self.trade = userConfig.strat['wallet']['trade']
+        self.wallet = Wallet(self.baseCurrency, self.tradingCurrency, self.base, self.trade)
         self.transactions = {}
         self.currentDrawdown = 0
         self.maxDrawdown = 0
@@ -47,14 +48,16 @@ class AbstractStrat:
         """
         return None
 
-    def run(self, client, apiKey, apiSecret):
-        self.client = client(apiKey, apiSecret)
+    def run(self, client, userConfig):
+        self.exchange.apiKey = userConfig.api['key']
+        self.exchange.apiSecret = userConfig.api['secret']
+        self.client = client(self.exchange.apiKey, self.exchange.apiSecret)
         self.exchange.historic[self.mainTimeFrame] = self.exchange.getHistoric(self.tradingCurrency, self.baseCurrency, self.mainTimeFrame, self.exchange.getStartHistory(self.mainTimeFrame, AbstractIndicators.MAX_PERIOD)).tail(AbstractIndicators.MAX_PERIOD)
         self.startWallet = self.wallet.getTotalAmount(self.exchange.historic[self.mainTimeFrame]['open'].iloc[0])
         self.minWallet = self.startWallet
         self.maxWallet = self.startWallet
-        print("historic getted. Wait new closed candle...")
-        self.exchange.waitNewCandle(self.newCandleCallback, self.tradingCurrency+self.baseCurrency, self.mainTimeFrame, apiKey, apiSecret)
+        Logger.write("historic getted. Wait new closed candle...", Logger.LOG_TYPE_INFO)
+        self.exchange.waitNewCandle(self.newCandleCallback, self.tradingCurrency+self.baseCurrency, self.mainTimeFrame)
 
     def newCandleCallback(self, msg):
         self.exchange.appendNewCandle(msg, self.mainTimeFrame, self.tradingCurrency+self.baseCurrency, AbstractIndicators.MAX_PERIOD)

@@ -1,25 +1,26 @@
 from core.abstractstratfutures import AbstractStratFutures
 from src.indicators.indicators import Indicators
+from core.tools.logger import Logger
 
 class StratBtcFuture(AbstractStratFutures):
 
-    def __init__(self, exchange, baseCurrency, tradingCurrency, base, trade, mainTimeFrame, leverage):
-        super().__init__(exchange, baseCurrency, tradingCurrency, base, trade, mainTimeFrame, leverage)
+    def __init__(self, exchange, userConfig):
+        super().__init__(exchange, userConfig)
 
     def setIndicators(self, timeframe):
         Indicators.RSI_OVERBOUGHT = 72
         Indicators.RSI_OVERSOLD = 34
         Indicators.setIndicators(self.exchange.historic[timeframe])
 
-    def run(self, client, apiKey, apiSecret):
-        super().run(client, apiKey, apiSecret)
+    def run(self, client, userConfig):
+        super().run(client, userConfig)
 
     def newCandleCallback(self, msg):
         super().newCandleCallback(msg)
         if self.exchange.isCandleClosed(msg):
-            print("New closed Candle")
-            print(msg)
-            print("wait for new candle...\n")
+            Logger.write("New closed Candle", Logger.LOG_TYPE_INFO)
+            Logger.write(msg,Logger.LOG_TYPE_INFO)
+            Logger.write("wait for new candle...", Logger.LOG_TYPE_INFO)
 
     def longOpenConditions(self, index):
         """

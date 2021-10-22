@@ -2,9 +2,9 @@ from binance.enums import HistoricalKlinesType
 from binance.client import Client
 from core.exchanges.binancespot import BinanceSpot
 from decimal import *
-from datetime import datetime
 from urllib.parse import quote
 from json import dumps
+from core.tools.logger import Logger
 
 class BinanceFutures(BinanceSpot):
     feesRate = Decimal(0.04/100)
@@ -12,7 +12,7 @@ class BinanceFutures(BinanceSpot):
     client = None
 
     def longOrder(devise, amount, leverage, type=Client.FUTURE_ORDER_TYPE_MARKET):
-        print("[" + str(datetime.now()) + "][" + devise + "][LONG][" + str(leverage) + "][" + str(amount) + "]")
+        Logger.write("[" + devise + "][LONG][" + str(leverage) + "][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
         return {
             'workingType':'CONTRACT_PRICE',
             'priceProtect':False,
@@ -45,7 +45,7 @@ class BinanceFutures(BinanceSpot):
         return longOrder
 
     def shortOrder(devise, amount, leverage, type=Client.FUTURE_ORDER_TYPE_MARKET):
-        print("[" + str(datetime.now()) + "][" + devise + "][SHORT][" + str(leverage) + "][" + str(amount) + "]")
+        Logger.write("[" + devise + "][SHORT][" + str(leverage) + "][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
         return {
             'workingType':'CONTRACT_PRICE',
             'priceProtect':False,
@@ -78,7 +78,7 @@ class BinanceFutures(BinanceSpot):
         return shortOrder
 
     def stopLossLongOrder(devise, amount, stopLoss, type=Client.FUTURE_ORDER_TYPE_STOP_MARKET):
-        print("[" + str(datetime.now()) + "][" + devise + "][LONGSTOPLOSS][" + str(stopLoss) + "][" + str(amount) + "]")
+        Logger.write("[" + devise + "][LONGSTOPLOSS][" + str(stopLoss) + "][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
         return {
             'status':'NEW',
             'symbol':'BTCUSDT',
@@ -112,7 +112,7 @@ class BinanceFutures(BinanceSpot):
         )
 
     def stopLossShortOrder(devise, amount, stopLoss, type=Client.FUTURE_ORDER_TYPE_STOP_MARKET):
-        print("[" + str(datetime.now()) + "][" + devise + "][SHORTSTOPLOSS][" + str(stopLoss) + "][" + str(amount) + "]")
+        Logger.write("[" + devise + "][SHORTSTOPLOSS][" + str(stopLoss) + "][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
         return {
             'status':'NEW',
             'symbol':'BTCUSDT',
@@ -146,7 +146,7 @@ class BinanceFutures(BinanceSpot):
         )
 
     def closeLongOrder(devise, amount, type=Client.FUTURE_ORDER_TYPE_MARKET):
-        print("[" + str(datetime.now()) + "][" + devise + "][CLOSELONG][" + str(amount) + "]")
+        Logger.write("[" + devise + "][CLOSELONG][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
         return None
         return BinanceFutures.getClient().futures_create_order(
             symbol=devise,
@@ -156,7 +156,7 @@ class BinanceFutures(BinanceSpot):
         )
 
     def closeShortOrder(devise, amount, type=Client.FUTURE_ORDER_TYPE_MARKET):
-        print("[" + str(datetime.now()) + "][" + devise + "][CLOSESHORT][" + str(amount) + "]")
+        Logger.write("[" + devise + "][CLOSESHORT][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
         return None
         return BinanceFutures.getClient().futures_create_order(
             symbol=devise,
@@ -170,7 +170,7 @@ class BinanceFutures(BinanceSpot):
         return None
 
     def hasOpenedPositions(devise):
-        positions = BinanceFutures.getClient().futures_position_information()
+        positions = BinanceFutures.getClient().futures_position_information(recvWindow=50000)
         for position in positions:
             amount = position["positionAmt"]
             if amount != "0" and float(position['unRealizedProfit']) != 0.00000000:  # if there is position
@@ -188,8 +188,6 @@ class BinanceFutures(BinanceSpot):
         return None
 
     def getClient():
-        #Hack because with delay too long, client expire
-        return Client(BinanceFutures.apiKey, BinanceFutures.apiSecret)
         if BinanceFutures.client == None:
             BinanceFutures.client = Client(BinanceFutures.apiKey, BinanceFutures.apiSecret)
         return BinanceFutures.client

@@ -3,34 +3,35 @@ from core.transaction.leverageorder import LeverageOrder
 from core.abstractindicators import AbstractIndicators
 from decimal import *
 from datetime import datetime
+from core.tools.logger import Logger
 
 class AbstractStratFutures(AbstractStrat):
     leverage = None
     orderInProgress = None
     walletInPosition = None
 
-    def __init__(self, exchange, baseCurrency, tradingCurrency, base, trade, mainTimeFrame, leverage):
-        super().__init__(exchange, baseCurrency, tradingCurrency, base, trade, mainTimeFrame)
-        self.leverage = leverage
+    def __init__(self, exchange, userConfig):
+        super().__init__(exchange, userConfig)
+        self.leverage = userConfig.strat['leverage']
         self.walletInPosition = 0
 
-    def run(self, client, apiKey, apiSecret):
+    def run(self, client, userConfig):
         #TODO : wallet need to be changed when we place order
-        self.client = client(apiKey, apiSecret)
-        self.exchange.apiKey = apiKey
-        self.exchange.apiSecret = apiSecret
+        self.exchange.apiKey = userConfig.api['key']
+        self.exchange.apiSecret = userConfig.api['secret']
+        self.client = client(self.exchange.apiKey, self.exchange.apiSecret)
         self.exchange.historic[self.mainTimeFrame] = self.exchange.getHistoric(self.tradingCurrency, self.baseCurrency, self.mainTimeFrame, self.exchange.getStartHistory(self.mainTimeFrame, AbstractIndicators.MAX_PERIOD)).tail(AbstractIndicators.MAX_PERIOD)
         self.startWallet = self.wallet.getTotalAmount(self.exchange.historic[self.mainTimeFrame]['open'].iloc[0])
         self.minWallet = self.startWallet
         self.maxWallet = self.startWallet
-        print("historic getted. Wait new closed candle...")
-        self.exchange.waitNewCandle(self.newCandleCallback, self.tradingCurrency+self.baseCurrency, self.mainTimeFrame, apiKey, apiSecret)
+        Logger.write("historic getted. Wait new closed candle...", Logger.LOG_TYPE_INFO)
+        self.exchange.waitNewCandle(self.newCandleCallback, self.tradingCurrency+self.baseCurrency, self.mainTimeFrame)
 
     def newCandleCallback(self, msg):
         self.exchange.appendNewCandle(msg, self.mainTimeFrame, self.tradingCurrency+self.baseCurrency, AbstractIndicators.MAX_PERIOD)
         self.setIndicators(self.mainTimeFrame)
         if self.orderInProgress != None and self.exchange.orderIsLiquidated(self.orderInProgress.id):
-            print("Order " + self.orderInProgress.id + " is liquidated")
+            Logger.write("Order " + self.orderInProgress.id + " is liquidated", Logger.LOG_TYPE_INFO)
             self.orderInProgress = None
         else:
             self.applyStrat(msg)
@@ -46,7 +47,7 @@ class AbstractStratFutures(AbstractStrat):
             if self.exchange.hasOpenedPositions(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency)):
                 stopLossHitted = True
             if stopLossHitted:
-                print("Order " + self.orderInProgress.id + " is closed because stop loss is hitted")
+                Logger.write("Order " + self.orderInProgress.id + " is closed because stop loss is hitted", Logger.LOG_TYPE_INFO)
                 self.exchange.closeOpenedPositions(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.linkedOrdersIds())
                 self.orderInProgress = None
                 return None
