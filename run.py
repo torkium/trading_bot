@@ -9,12 +9,13 @@ from datetime import datetime
 Sample code to launch strat in real mode
 """
 
+#Get the user config from user config file
+userConfig = UserConfig("userconfig.yaml")
 #To show logs in console too
 Logger.SHOW_CONSOLE = True
 #To have specific filename for log file with date and hour of execution
 Logger.FILENAME = "logs/log_" + datetime.now().strftime("%Y%m%d_%H%M%S")
-#Get the user config from user config file
-userConfig = UserConfig("userconfig.yaml")
+Logger.LOG_LEVEL = userConfig.logs["level"]
 #Get the strat
 stratfuture = StratBtcFuture(Exchange, userConfig)
 #Run the strat
