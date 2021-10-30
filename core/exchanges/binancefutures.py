@@ -12,6 +12,7 @@ class BinanceFutures(BinanceSpot):
     client = None
 
     def longOrder(devise, amount, leverage, type=Client.FUTURE_ORDER_TYPE_MARKET):
+        amount = BinanceFutures.truncate(amount, devise)
         Logger.write("[" + devise + "][LONG][" + str(leverage) + "][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
         return {
             'workingType':'CONTRACT_PRICE',
@@ -45,6 +46,7 @@ class BinanceFutures(BinanceSpot):
         return longOrder
 
     def shortOrder(devise, amount, leverage, type=Client.FUTURE_ORDER_TYPE_MARKET):
+        amount = BinanceFutures.truncate(amount, devise)
         Logger.write("[" + devise + "][SHORT][" + str(leverage) + "][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
         return {
             'workingType':'CONTRACT_PRICE',
@@ -78,6 +80,7 @@ class BinanceFutures(BinanceSpot):
         return shortOrder
 
     def stopLossLongOrder(devise, amount, stopLoss, type=Client.FUTURE_ORDER_TYPE_STOP_MARKET):
+        amount = BinanceFutures.truncate(amount, devise)
         Logger.write("[" + devise + "][LONGSTOPLOSS][" + str(stopLoss) + "][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
         return {
             'status':'NEW',
@@ -112,6 +115,7 @@ class BinanceFutures(BinanceSpot):
         )
 
     def stopLossShortOrder(devise, amount, stopLoss, type=Client.FUTURE_ORDER_TYPE_STOP_MARKET):
+        amount = BinanceFutures.truncate(amount, devise)
         Logger.write("[" + devise + "][SHORTSTOPLOSS][" + str(stopLoss) + "][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
         return {
             'status':'NEW',
@@ -146,6 +150,7 @@ class BinanceFutures(BinanceSpot):
         )
 
     def closeLongOrder(devise, amount, type=Client.FUTURE_ORDER_TYPE_MARKET):
+        amount = BinanceFutures.truncate(amount, devise)
         Logger.write("[" + devise + "][CLOSELONG][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
         return None
         return BinanceFutures.getClient().futures_create_order(
@@ -156,6 +161,7 @@ class BinanceFutures(BinanceSpot):
         )
 
     def closeShortOrder(devise, amount, type=Client.FUTURE_ORDER_TYPE_MARKET):
+        amount = BinanceFutures.truncate(amount, devise)
         Logger.write("[" + devise + "][CLOSESHORT][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
         return None
         return BinanceFutures.getClient().futures_create_order(

@@ -4,6 +4,7 @@ from binance.enums import HistoricalKlinesType
 import pandas as pd
 import time
 from decimal import *
+from math import *
 
 class BinanceSpot:
     apiKey = None
@@ -13,9 +14,15 @@ class BinanceSpot:
     feesRate = Decimal(0.1/100)
     klines_type = HistoricalKlinesType.FUTURES
 
+    devise_precision = None
+
     @staticmethod
-    def getHistoric(tradingCurrency, baseCurrency, timeframe, startDate, endDate=None):
-        devise = tradingCurrency+baseCurrency
+    def getHistoric(devise, timeframe, startDate, endDate=None):
+        if BinanceSpot.devise_precision == None:
+            BinanceSpot.devise_precision = {}
+            info = Client().futures_exchange_info()
+            for item in info['symbols']: 
+                BinanceSpot.devise_precision[item['symbol']] = item['quantityPrecision']
         if timeframe not in BinanceSpot.historic:
             #Get history from Binance
             klinesT = Client().get_historical_klines(devise, BinanceSpot.getTimeframe(timeframe), startDate, endDate, klines_type=BinanceSpot.klines_type)
@@ -128,3 +135,8 @@ class BinanceSpot:
     @staticmethod
     def getDevise(baseCurrency, tradeCurrency):
         return tradeCurrency + baseCurrency
+
+    def truncate(n, devise):
+        decimals = BinanceSpot.devise_precision[devise]
+        r = floor(float(n)*10**decimals)/10**decimals
+        return r

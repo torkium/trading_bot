@@ -52,20 +52,20 @@ class AbstractStrat:
         self.exchange.apiKey = userConfig.api['key']
         self.exchange.apiSecret = userConfig.api['secret']
         self.client = client(self.exchange.apiKey, self.exchange.apiSecret)
-        self.exchange.historic[self.mainTimeFrame] = self.exchange.getHistoric(self.tradingCurrency, self.baseCurrency, self.mainTimeFrame, self.exchange.getStartHistory(self.mainTimeFrame, AbstractIndicators.MAX_PERIOD)).tail(AbstractIndicators.MAX_PERIOD)
+        self.exchange.historic[self.mainTimeFrame] = self.exchange.getHistoric(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.mainTimeFrame, self.exchange.getStartHistory(self.mainTimeFrame, AbstractIndicators.MAX_PERIOD)).tail(AbstractIndicators.MAX_PERIOD)
         self.startWallet = self.wallet.getTotalAmount(self.exchange.historic[self.mainTimeFrame]['open'].iloc[0])
         self.minWallet = self.startWallet
         self.maxWallet = self.startWallet
         Logger.write("historic getted. Wait new closed candle...", Logger.LOG_TYPE_INFO)
-        self.exchange.waitNewCandle(self.newCandleCallback, self.tradingCurrency+self.baseCurrency, self.mainTimeFrame)
+        self.exchange.waitNewCandle(self.newCandleCallback, self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.mainTimeFrame)
 
     def newCandleCallback(self, msg):
-        self.exchange.appendNewCandle(msg, self.mainTimeFrame, self.tradingCurrency+self.baseCurrency, AbstractIndicators.MAX_PERIOD)
+        self.exchange.appendNewCandle(msg, self.mainTimeFrame, self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), AbstractIndicators.MAX_PERIOD)
         self.setIndicators(self.mainTimeFrame)
         return None
 
     def addHistory(self, timeframe):
-        self.exchange.historic[timeframe] = self.exchange.getHistoric(self.tradingCurrency, self.baseCurrency, timeframe, self.startDate, self.endDate)
+        self.exchange.historic[timeframe] = self.exchange.getHistoric(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), timeframe, self.startDate, self.endDate)
 
     def getLastHistoryIndex(self, index, timeframe):
         timeToReturn = None
