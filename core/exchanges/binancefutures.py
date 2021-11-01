@@ -173,7 +173,7 @@ class BinanceFutures(BinanceSpot):
 
 
     def orderIsLiquidated(orderId):
-        if orderId is None:
+        if orderId is not None:
             liquidationOrder = BinanceFutures.getClient().futures_coin_liquidation_orders()
             for order in liquidationOrder:
                 if order['orderId'] == orderId:
