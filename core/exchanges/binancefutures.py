@@ -3,7 +3,7 @@ from binance.client import Client
 from core.exchanges.binancespot import BinanceSpot
 from decimal import *
 from urllib.parse import quote
-from json import dumps
+from json import dumps, loads
 from core.tools.logger import Logger
 
 class BinanceFutures(BinanceSpot):
@@ -106,10 +106,10 @@ class BinanceFutures(BinanceSpot):
             'updateTime':1634043139579
         }
         return BinanceFutures.getClient().futures_create_order(
-            symbol = devise, 
-            side = Client.SIDE_SELL, 
-            type = type, 
-            timeInForce = Client.TIME_IN_FORCE_GTC, 
+            symbol = devise,
+            side = Client.SIDE_SELL,
+            type = type,
+            timeInForce = Client.TIME_IN_FORCE_GTC,
             quantity = amount,
             stopPrice = stopLoss
         )
@@ -141,10 +141,10 @@ class BinanceFutures(BinanceSpot):
             'updateTime':1634043139580
         }
         return BinanceFutures.getClient().futures_create_order(
-            symbol = devise, 
-            side = Client.SIDE_BUY, 
-            type = type, 
-            timeInForce = Client.TIME_IN_FORCE_GTC, 
+            symbol = devise,
+            side = Client.SIDE_BUY,
+            type = type,
+            timeInForce = Client.TIME_IN_FORCE_GTC,
             quantity = amount,
             stopPrice = stopLoss
         )
@@ -170,9 +170,15 @@ class BinanceFutures(BinanceSpot):
             side=Client.SIDE_BUY,
             quantity=amount
         )
-    
+
 
     def orderIsLiquidated(orderId):
+        if orderId is not None:
+            liquidationOrder = BinanceFutures.getClient().futures_coin_liquidation_orders()
+            for order in liquidationOrder:
+                if order['orderId'] == orderId:
+                    return True
+
         return None
 
     def hasOpenedPositions(devise):
