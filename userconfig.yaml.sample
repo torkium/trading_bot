@@ -4,11 +4,12 @@ strat:
   wallet:
     base: <Your strat wallet base>
     trade: <Your strat wallet trade>
-  leverage:
-    <Your strat leverage>
+  leverage: <Your strat leverage>
   timeframe: <Your strat timeframe>
+  time_to_sleep: <Check every x seconds>
 logs:
   level: <Your lo level (0 to 3)>
+  console: <to show console. true or false>
 api:
   key: <Your API KEY>
   secret: <Your API SECRET>

@@ -1,6 +1,6 @@
 from core.abstractstratfutures import AbstractStratFutures
 from src.indicators.indicators import Indicators
-from core.tools.logger import Logger
+from decimal import *
 
 class StratBtcFuture(AbstractStratFutures):
 
@@ -60,7 +60,7 @@ class StratBtcFuture(AbstractStratFutures):
         Must return the price to stop loss, or none
         """
         #return None
-        stopLossPercent = 3
+        stopLossPercent = Decimal(3)
         return self.orderInProgress.price - self.orderInProgress.price*stopLossPercent/100
     
     def stopLossShortPrice(self):
@@ -69,5 +69,5 @@ class StratBtcFuture(AbstractStratFutures):
         Must return the price to stop loss, or none
         """
         #return None
-        stopLossPercent = 2
+        stopLossPercent = Decimal(2)
         return self.orderInProgress.price + self.orderInProgress.price*stopLossPercent/100

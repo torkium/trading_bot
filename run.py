@@ -1,22 +1,10 @@
-from src.strats.stratbtcfuture import StratBtcFuture
+from src.strats.stratbtcfuture import StratBtcFuture as Strat
 from core.exchanges.binancefutures import BinanceFutures as Exchange
 from binance.client import Client
-from core.userconfig import UserConfig
+from core.core import Core
 from core.tools.logger import Logger
-from datetime import datetime
 
-"""
+""" 
 Sample code to launch strat in real mode
 """
-
-#Get the user config from user config file
-userConfig = UserConfig("userconfig.yaml")
-#To show logs in console too
-Logger.SHOW_CONSOLE = True
-#To have specific filename for log file with date and hour of execution
-Logger.FILENAME = "logs/log_" + datetime.now().strftime("%Y%m%d_%H%M%S")
-Logger.LOG_LEVEL = userConfig.logs["level"]
-#Get the strat
-stratfuture = StratBtcFuture(Exchange, userConfig)
-#Run the strat
-stratfuture.run(Client, userConfig)
+Core.run(Strat, Exchange, Client, Logger, "userconfig.yaml")

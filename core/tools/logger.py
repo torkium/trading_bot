@@ -10,7 +10,7 @@ class Logger:
 
     LOG_LEVEL = 3
     SHOW_CONSOLE = False
-    FILENAME = "logs/log.txt"
+    FILENAME = "logs/log_" + datetime.now().strftime("%Y%m%d_%H%M%S")
 
     def write(log, type):
         if type <= Logger.LOG_LEVEL:

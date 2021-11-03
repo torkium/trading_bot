@@ -2,8 +2,9 @@ from binance.enums import HistoricalKlinesType
 from binance.client import Client
 from core.exchanges.binancespot import BinanceSpot
 from decimal import *
+from math import *
 from urllib.parse import quote
-from json import dumps, loads
+from json import dumps
 from core.tools.logger import Logger
 
 class BinanceFutures(BinanceSpot):
@@ -11,167 +12,104 @@ class BinanceFutures(BinanceSpot):
     klines_type = HistoricalKlinesType.FUTURES
     client = None
 
+    @staticmethod
+    def getHistoric(devise, timeframe, startDate, endDate=None, renew=False):
+        if BinanceFutures.devise_precision == None or BinanceFutures.price_precision == None:
+            BinanceFutures.setPrecision()
+        return BinanceSpot.getHistoric(devise, timeframe, startDate, endDate, renew)
+    
+    @staticmethod
+    def setPrecision():
+        BinanceFutures.devise_precision = {}
+        BinanceFutures.price_precision = {}
+        info = Client().futures_exchange_info()
+        for item in info['symbols']: 
+            BinanceFutures.devise_precision[item['symbol']] = item['quantityPrecision']
+            BinanceFutures.price_precision[item['symbol']] = item['pricePrecision']
+
+    @staticmethod
     def longOrder(devise, amount, leverage, type=Client.FUTURE_ORDER_TYPE_MARKET):
-        amount = BinanceFutures.truncate(amount, devise)
+        amount = BinanceFutures.truncateDevise(amount, devise)
         Logger.write("[" + devise + "][LONG][" + str(leverage) + "][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
-        return {
-            'workingType':'CONTRACT_PRICE',
-            'priceProtect':False,
-            'origType':'MARKET',
-            'stopPrice':'0',
-            'positionSide':'BOTH',
-            'side':'BUY',
-            'closePosition':False,
-            'reduceOnly':False,
-            'type':'MARKET',
-            'timeInForce':'GTC',
-            'cumQuote':'0',
-            'cumQty':'0',
-            'executedQty':'0',
-            'origQty':'0.001',
-            'avgPrice':'0.00000',
-            'price':'0',
-            'clientOrderId':'OzWTSG8DnlKO5aRuDsuMz6',
-            'status':'NEW',
-            'symbol':'BTCUSDT',
-            'orderId':33502125493
-        }
         BinanceFutures.getClient().futures_change_leverage(symbol=devise, leverage=leverage)
-        longOrder = BinanceFutures.getClient().futures_create_order(
+        order = BinanceFutures.getClient().futures_create_order(
             symbol=devise,
             type=Client.FUTURE_ORDER_TYPE_MARKET,
             side=Client.SIDE_BUY,
             quantity=amount
         )
-        return longOrder
+        return order["orderId"]
 
+    @staticmethod
     def shortOrder(devise, amount, leverage, type=Client.FUTURE_ORDER_TYPE_MARKET):
-        amount = BinanceFutures.truncate(amount, devise)
+        amount = BinanceFutures.truncateDevise(amount, devise)
         Logger.write("[" + devise + "][SHORT][" + str(leverage) + "][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
-        return {
-            'workingType':'CONTRACT_PRICE',
-            'priceProtect':False,
-            'origType':'MARKET',
-            'stopPrice':'0',
-            'positionSide':'BOTH',
-            'side':'SELL',
-            'closePosition':False,
-            'reduceOnly':False,
-            'type':'MARKET',
-            'timeInForce':'GTC',
-            'cumQuote':'0',
-            'cumQty':'0',
-            'executedQty':'0',
-            'origQty':'0.001',
-            'avgPrice':'0.00000',
-            'price':'0',
-            'clientOrderId':'OzWTSG8DnlKO5aRuDsuMz6',
-            'status':'NEW',
-            'symbol':'BTCUSDT',
-            'orderId':33502125494
-        }
         BinanceFutures.getClient().futures_change_leverage(symbol=devise, leverage=leverage)
-        shortOrder = BinanceFutures.getClient().futures_create_order(
+        order = BinanceFutures.getClient().futures_create_order(
             symbol=devise,
             type=Client.FUTURE_ORDER_TYPE_MARKET,
             side=Client.SIDE_SELL,
             quantity=amount
         )
-        return shortOrder
+        return order["orderId"]
 
+    @staticmethod
     def stopLossLongOrder(devise, amount, stopLoss, type=Client.FUTURE_ORDER_TYPE_STOP_MARKET):
-        amount = BinanceFutures.truncate(amount, devise)
+        amount = BinanceFutures.truncateDevise(amount, devise)
+        stopLoss = BinanceFutures.truncatePrice(stopLoss, devise)
         Logger.write("[" + devise + "][LONGSTOPLOSS][" + str(stopLoss) + "][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
-        return {
-            'status':'NEW',
-            'symbol':'BTCUSDT',
-            'orderId':33501890429,
-            'clientOrderId':'9tXhkQnljb4cA3Ri9iQbzw',
-            'price':'0',
-            'avgPrice':'0.00000',
-            'origQty':'0.001',
-            'executedQty':'0',
-            'cumQty':'0',
-            'cumQuote':'0',
-            'timeInForce':'GTC',
-            'type':'STOP_MARKET',
-            'reduceOnly':False,
-            'closePosition':False,
-            'side':'SELL',
-            'positionSide':'BOTH',
-            'stopPrice':'53000',
-            'workingType':'CONTRACT_PRICE',
-            'priceProtect':False,
-            'origType':'STOP_MARKET',
-            'updateTime':1634043139579
-        }
-        return BinanceFutures.getClient().futures_create_order(
+        order = BinanceFutures.getClient().futures_create_order(
             symbol = devise,
             side = Client.SIDE_SELL,
             type = type,
             timeInForce = Client.TIME_IN_FORCE_GTC,
             quantity = amount,
-            stopPrice = stopLoss
+            stopPrice = stopLoss,
+            reduceOnly = True
         )
+        return order["orderId"]
 
+    @staticmethod
     def stopLossShortOrder(devise, amount, stopLoss, type=Client.FUTURE_ORDER_TYPE_STOP_MARKET):
-        amount = BinanceFutures.truncate(amount, devise)
+        amount = BinanceFutures.truncateDevise(amount, devise)
+        stopLoss = BinanceFutures.truncatePrice(stopLoss, devise)
         Logger.write("[" + devise + "][SHORTSTOPLOSS][" + str(stopLoss) + "][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
-        return {
-            'status':'NEW',
-            'symbol':'BTCUSDT',
-            'orderId':33501890429,
-            'clientOrderId':'9tXhkQnljb4cA3Ri9iQbzw',
-            'price':'0',
-            'avgPrice':'0.00000',
-            'origQty':'0.001',
-            'executedQty':'0',
-            'cumQty':'0',
-            'cumQuote':'0',
-            'timeInForce':'GTC',
-            'type':'STOP_MARKET',
-            'reduceOnly':False,
-            'closePosition':False,
-            'side':'SELL',
-            'positionSide':'BOTH',
-            'stopPrice':'53000',
-            'workingType':'CONTRACT_PRICE',
-            'priceProtect':False,
-            'origType':'STOP_MARKET',
-            'updateTime':1634043139580
-        }
-        return BinanceFutures.getClient().futures_create_order(
+        order = BinanceFutures.getClient().futures_create_order(
             symbol = devise,
             side = Client.SIDE_BUY,
             type = type,
             timeInForce = Client.TIME_IN_FORCE_GTC,
             quantity = amount,
-            stopPrice = stopLoss
+            stopPrice = stopLoss,
+            reduceOnly = True
         )
+        return order["orderId"]
 
+    @staticmethod
     def closeLongOrder(devise, amount, type=Client.FUTURE_ORDER_TYPE_MARKET):
-        amount = BinanceFutures.truncate(amount, devise)
+        amount = BinanceFutures.truncateDevise(amount, devise)
         Logger.write("[" + devise + "][CLOSELONG][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
-        return None
-        return BinanceFutures.getClient().futures_create_order(
+        order = BinanceFutures.getClient().futures_create_order(
             symbol=devise,
             type=type,
             side=Client.SIDE_SELL,
             quantity=amount
         )
+        return order["orderId"]
 
+    @staticmethod
     def closeShortOrder(devise, amount, type=Client.FUTURE_ORDER_TYPE_MARKET):
-        amount = BinanceFutures.truncate(amount, devise)
+        amount = BinanceFutures.truncateDevise(amount, devise)
         Logger.write("[" + devise + "][CLOSESHORT][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
-        return None
-        return BinanceFutures.getClient().futures_create_order(
+        order = BinanceFutures.getClient().futures_create_order(
             symbol=devise,
             type=type,
             side=Client.SIDE_BUY,
             quantity=amount
         )
+        return order["orderId"]
 
-
+    @staticmethod
     def orderIsLiquidated(orderId):
         if orderId is not None:
             liquidationOrder = BinanceFutures.getClient().futures_coin_liquidation_orders()
@@ -179,8 +117,9 @@ class BinanceFutures(BinanceSpot):
                 if order['orderId'] == orderId:
                     return True
 
-        return None
+        return False
 
+    @staticmethod
     def hasOpenedPositions(devise):
         positions = BinanceFutures.getClient().futures_position_information(recvWindow=50000)
         for position in positions:
@@ -189,6 +128,7 @@ class BinanceFutures(BinanceSpot):
                 if position["entryPrice"] > position["liquidationPrice"]:
                     return True
 
+    @staticmethod
     def closeOpenedPositions(devise, ordersIds):
         if len(ordersIds) > 0:
             idsString = dumps(ordersIds).replace(" ", "")
@@ -199,6 +139,42 @@ class BinanceFutures(BinanceSpot):
             )
         return None
 
+    @staticmethod
+    def getOrder(devise, orderId):
+        return BinanceFutures.getClient().futures_get_order(
+            symbol=devise,
+            orderId=orderId
+        )
+    
+    @staticmethod
+    def getOrderStatus(order):
+        return order['status']
+    
+    @staticmethod
+    def getOrderQuantity(order):
+        return Decimal(order['executedQty'])
+    
+    @staticmethod
+    def getOrderPrice(order):
+        return Decimal(order['avgPrice'])
+
+    @staticmethod
+    def isFilledOrder(order):
+        return BinanceFutures.getOrderStatus(order) == BinanceFutures.ORDER_STATUS_FILLED
+
+    @staticmethod
+    def truncateDevise(n, devise):
+        decimals = BinanceFutures.devise_precision[devise]
+        r = floor(float(n)*10**decimals)/10**decimals
+        return r
+
+    @staticmethod
+    def truncatePrice(n, devise):
+        decimals = BinanceFutures.price_precision[devise]
+        r = floor(float(n)*10**decimals)/10**decimals
+        return r
+
+    @staticmethod
     def getClient():
         if BinanceFutures.client == None:
             BinanceFutures.client = Client(BinanceFutures.apiKey, BinanceFutures.apiSecret)

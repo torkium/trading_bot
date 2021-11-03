@@ -15,15 +15,18 @@ class BinanceSpot:
     klines_type = HistoricalKlinesType.FUTURES
 
     devise_precision = None
+    price_precision = None
+
+    ORDER_STATUS_NEW = "NEW"
+    ORDER_STATUS_FILLED = "FILLED"
 
     @staticmethod
-    def getHistoric(devise, timeframe, startDate, endDate=None):
+    def getHistoric(devise, timeframe, startDate, endDate=None, renew=False):
         if BinanceSpot.devise_precision == None:
-            BinanceSpot.devise_precision = {}
-            info = Client().futures_exchange_info()
-            for item in info['symbols']: 
-                BinanceSpot.devise_precision[item['symbol']] = item['quantityPrecision']
-        if timeframe not in BinanceSpot.historic:
+            BinanceSpot.setDevisePrecision()
+        if BinanceSpot.price_precision == None:
+            BinanceSpot.setPricePrecision()
+        if timeframe not in BinanceSpot.historic or renew:
             #Get history from Binance
             klinesT = Client().get_historical_klines(devise, BinanceSpot.getTimeframe(timeframe), startDate, endDate, klines_type=BinanceSpot.klines_type)
             for row in klinesT:
@@ -45,6 +48,14 @@ class BinanceSpot:
             del histo['timestamp']
             BinanceSpot.historic[timeframe] = histo
         return BinanceSpot.historic[timeframe]
+
+    @staticmethod
+    def setDevisePrecision():
+        BinanceSpot.devise_precision = {}
+
+    @staticmethod
+    def setPricePrecision():
+        BinanceSpot.price_precision = {}
 
     @staticmethod
     def getTimeframe(timeframe):
@@ -133,10 +144,37 @@ class BinanceSpot:
             BinanceSpot.historic[timeframe] = BinanceSpot.historic[timeframe].tail(max_period)
 
     @staticmethod
+    def getPrice(timeframe, index):
+        return Decimal(BinanceSpot.historic[timeframe]['close'][index])
+
+    @staticmethod
     def getDevise(baseCurrency, tradeCurrency):
         return tradeCurrency + baseCurrency
 
-    def truncate(n, devise):
+    @staticmethod
+    def getOrder(devise, orderId):
+        return None
+    
+    @staticmethod
+    def getOrderStatus(order):
+        return None
+    
+    @staticmethod
+    def getOrderQuantity(order):
+        return None
+    
+    @staticmethod
+    def getOrderPrice(order):
+        return None
+
+    @staticmethod
+    def truncateDevise(n, devise):
         decimals = BinanceSpot.devise_precision[devise]
+        r = floor(float(n)*10**decimals)/10**decimals
+        return r
+
+    @staticmethod
+    def truncatePrice(n, devise):
+        decimals = BinanceSpot.price_precision[devise]
         r = floor(float(n)*10**decimals)/10**decimals
         return r

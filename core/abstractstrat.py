@@ -23,12 +23,16 @@ class AbstractStrat:
     currentDrawdown = None
     maxDrawdown = None
     totalFees = None
+    timeToSleep = 300
+    currentHistoryIndex = None
+    waitNextClosedCandle = False
 
     def __init__(self, exchange, userConfig):
         self.exchange = exchange
         self.mainTimeFrame = userConfig.strat['timeframe']
         self.baseCurrency = userConfig.strat['base_currency']
         self.tradingCurrency = userConfig.strat['trade_currency']
+        self.timeToSleep = userConfig.strat['time_to_sleep']
         self.base = userConfig.strat['wallet']['base']
         self.trade = userConfig.strat['wallet']['trade']
         self.wallet = Wallet(self.baseCurrency, self.tradingCurrency, self.base, self.trade)
@@ -40,7 +44,7 @@ class AbstractStrat:
 
     
     def setIndicators(self, timeframe):
-        return None
+        return AbstractIndicators.setIndicators(self.exchange.historic[timeframe])
 
     def demo(self):
         """

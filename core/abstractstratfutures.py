@@ -28,11 +28,19 @@ class AbstractStratFutures(AbstractStrat):
         self.maxWallet = self.startWallet
         Logger.write("historic getted.", Logger.LOG_TYPE_INFO)
         while True:
-            time.sleep(60)
-            self.exchange.historic[self.mainTimeFrame] = self.exchange.getHistoric(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.mainTimeFrame, self.exchange.getStartHistory(self.mainTimeFrame, AbstractIndicators.MAX_PERIOD)).tail(AbstractIndicators.MAX_PERIOD)
+            time.sleep(self.timeToSleep)
+            self.exchange.historic[self.mainTimeFrame] = self.exchange.getHistoric(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.mainTimeFrame, self.exchange.getStartHistory(self.mainTimeFrame, AbstractIndicators.MAX_PERIOD), None, True).tail(AbstractIndicators.MAX_PERIOD)
             self.setIndicators(self.mainTimeFrame)
+            if self.orderInProgress != None and self.orderInProgress.status != self.exchange.ORDER_STATUS_FILLED:
+                order = self.exchange.getOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.id)
+                if self.exchange.getOrderStatus(order) == self.exchange.ORDER_STATUS_FILLED:
+                    self.orderInProgress.status = self.exchange.ORDER_STATUS_FILLED
+                    self.orderInProgress.amount = self.exchange.getOrderQuantity(order)
+                    self.orderInProgress.price = self.exchange.getOrderPrice(order)
+                    Logger.write("Order " + str(self.orderInProgress.id) + " is filled", Logger.LOG_TYPE_INFO)
+                    Logger.write(str(self.orderInProgress), Logger.LOG_TYPE_INFO)
             if self.orderInProgress != None and self.exchange.orderIsLiquidated(self.orderInProgress.id):
-                Logger.write("Order " + self.orderInProgress.id + " is liquidated", Logger.LOG_TYPE_DEBUG)
+                Logger.write("Order " + str(self.orderInProgress.id) + " is liquidated", Logger.LOG_TYPE_DEBUG)
                 self.orderInProgress = None
             else:
                 self.applyStrat()
@@ -48,65 +56,77 @@ class AbstractStratFutures(AbstractStrat):
         self.exchange.appendNewCandle(msg, self.mainTimeFrame, self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), AbstractIndicators.MAX_PERIOD)
         self.setIndicators(self.mainTimeFrame)
         if self.orderInProgress != None and self.exchange.orderIsLiquidated(self.orderInProgress.id):
-            Logger.write("Order " + self.orderInProgress.id + " is liquidated", Logger.LOG_TYPE_DEBUG)
+            Logger.write("Order " + str(self.orderInProgress.id) + " is liquidated", Logger.LOG_TYPE_DEBUG)
             self.orderInProgress = None
+            self.waitNextClosedCandle = True
         else:
             self.applyStrat(msg)
     
     def applyStrat(self):
-        currentIndex = self.exchange.historic[self.mainTimeFrame].last_valid_index()
         if self.orderInProgress != None:
-            stopLossHitted = False
-            if self.orderInProgress.type == LeverageOrder.ORDER_TYPE_LONG:
-                stopLossHitted = self.stopLossLongPrice() >= self.exchange.historic[self.mainTimeFrame]['close'][currentIndex]
-            if self.orderInProgress.type == LeverageOrder.ORDER_TYPE_SHORT:
-                stopLossHitted = self.stopLossShortPrice() <= self.exchange.historic[self.mainTimeFrame]['close'][currentIndex]
-            if self.exchange.hasOpenedPositions(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency)):
-                stopLossHitted = True
+            stopLossHitted = len(self.orderInProgress.linkedOrdersIds)>0
+            for orderId in self.orderInProgress.linkedOrdersIds:
+                if self.exchange.getOrderStatus(self.exchange.getOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), orderId)) != self.exchange.ORDER_STATUS_FILLED:
+                    stopLossHitted = False
             if stopLossHitted:
-                Logger.write("Order " + self.orderInProgress.id + " is closed because stop loss is hitted", Logger.LOG_TYPE_INFO)
-                self.exchange.closeOpenedPositions(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.linkedOrdersIds())
+                Logger.write("Order " + str(self.orderInProgress.id) + " is closed because stop loss is hitted", Logger.LOG_TYPE_INFO)
+                Logger.write("Waiting new closed candle to try to take position...", Logger.LOG_TYPE_INFO)
                 self.orderInProgress = None
+                self.waitNextClosedCandle = True
                 return None
         #apply strat
+        last_history_index = self.exchange.historic[self.mainTimeFrame].last_valid_index()
+        if self.waitNextClosedCandle:
+            if self.currentHistoryIndex == last_history_index:
+                return None
+            Logger.write("New closed candle. Waiting valid condition to take position...", Logger.LOG_TYPE_INFO)
+            self.waitNextClosedCandle = False
+        self.currentHistoryIndex = last_history_index
+        price = self.exchange.getPrice(self.mainTimeFrame, self.currentHistoryIndex)
         if self.orderInProgress == None:
-            longCondition = self.longOpenConditions(currentIndex)
-            shortCondition = self.shortOpenConditions(currentIndex)
+            longCondition = self.longOpenConditions(self.currentHistoryIndex)
+            shortCondition = self.shortOpenConditions(self.currentHistoryIndex)
             if longCondition > 0:
                 #Open Long order
-                amount = Decimal(self.wallet.base * longCondition / 100) / self.exchange.historic[self.mainTimeFrame]['close'][currentIndex]
-                order = self.exchange.longOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), amount, self.leverage)
-                self.orderInProgress = LeverageOrder(order["orderId"], self.leverage, LeverageOrder.ORDER_TYPE_LONG, order["origQty"], self.exchange.historic[self.mainTimeFrame]['close'][currentIndex], datetime.now())
+                amount = Decimal(self.wallet.base * longCondition / 100) / price
+                orderId = self.exchange.longOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), amount, self.leverage)
+                self.orderInProgress = LeverageOrder(orderId, self.leverage, LeverageOrder.ORDER_TYPE_LONG, amount, price, self.exchange.ORDER_STATUS_NEW, datetime.now())
                 if self.stopLossLongPrice() != None:
-                    stopLossOrder = self.exchange.stopLossLongOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.amount, self.stopLossLongPrice())
-                    self.orderInProgress.addLinkedOrder(stopLossOrder["orderId"])
+                    orderId = self.exchange.stopLossLongOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.amount, self.stopLossLongPrice())
+                    self.orderInProgress.addLinkedOrder(orderId)
+                Logger.write("Order " + str(self.orderInProgress.id) + " is required", Logger.LOG_TYPE_INFO)
+                Logger.write(str(self.orderInProgress), Logger.LOG_TYPE_INFO)
                 return None
             if longCondition == 0 and shortCondition > 0:
                 #Open Short order
-                amount = Decimal(self.wallet.base * shortCondition / 100) / self.exchange.historic[self.mainTimeFrame]['close'][currentIndex]
-                order = self.exchange.shortOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), amount, self.leverage)
-                self.orderInProgress = LeverageOrder(order["orderId"], self.leverage, LeverageOrder.ORDER_TYPE_SHORT, order["origQty"], self.exchange.historic[self.mainTimeFrame]['close'][currentIndex], datetime.now())
+                amount = Decimal(self.wallet.base * shortCondition / 100) / price
+                orderId = self.exchange.shortOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), amount, self.leverage)
+                self.orderInProgress = LeverageOrder(orderId, self.leverage, LeverageOrder.ORDER_TYPE_SHORT, amount, price, self.exchange.ORDER_STATUS_NEW, datetime.now())
                 if self.stopLossShortPrice() != None:
-                    stopLossOrder = self.exchange.stopLossShortOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.amount, self.stopLossShortPrice())
-                    self.orderInProgress.addLinkedOrder(stopLossOrder["orderId"])
+                    orderId = self.exchange.stopLossShortOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.amount, self.stopLossShortPrice())
+                    self.orderInProgress.addLinkedOrder(orderId)
+                Logger.write("Order " + str(self.orderInProgress.id) + " is required", Logger.LOG_TYPE_INFO)
+                Logger.write(str(self.orderInProgress), Logger.LOG_TYPE_INFO)
                 return None
         else:
             #TODO : for the moment, closed partial order don't work. Only closed 100% is allow
             if self.orderInProgress.type == LeverageOrder.ORDER_TYPE_LONG:
-                longCloseCondition = self.longCloseConditions(currentIndex)
+                longCloseCondition = self.longCloseConditions(self.currentHistoryIndex)
                 if longCloseCondition>0:
                     #Close long order
-                    order = self.exchange.closeLongOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.id, self.orderInProgress.amount)
+                    orderId = self.exchange.closeLongOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.amount)
                     self.exchange.closeOpenedPositions(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.linkedOrdersIds)
                     self.orderInProgress = None
+                    self.waitNextClosedCandle = True
                     return None
             if self.orderInProgress.type == LeverageOrder.ORDER_TYPE_SHORT:
-                shortCloseCondition = self.shortCloseConditions(currentIndex)
+                shortCloseCondition = self.shortCloseConditions(self.currentHistoryIndex)
                 if shortCloseCondition>0:
                     #Close short order
-                    order = self.exchange.closeShortOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.id, self.orderInProgress.amount)
+                    orderId = self.exchange.closeShortOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.amount)
                     self.exchange.closeOpenedPositions(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.linkedOrdersIds)
                     self.orderInProgress = None
+                    self.waitNextClosedCandle = True
                     return None
             return None
         return None
