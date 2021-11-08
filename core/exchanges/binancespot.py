@@ -1,6 +1,7 @@
 from binance.client import Client
 from binance import ThreadedWebsocketManager
 from binance.enums import HistoricalKlinesType
+import requests
 import pandas as pd
 import time
 from decimal import *
@@ -28,7 +29,13 @@ class BinanceSpot:
             BinanceSpot.setPricePrecision()
         if timeframe not in BinanceSpot.historic or renew:
             #Get history from Binance
-            klinesT = Client().get_historical_klines(devise, BinanceSpot.getTimeframe(timeframe), startDate, endDate, klines_type=BinanceSpot.klines_type)
+            klinesT = None
+            while klinesT == None:
+                try:
+                    klinesT = Client().get_historical_klines(devise, BinanceSpot.getTimeframe(timeframe), startDate, endDate, klines_type=BinanceSpot.klines_type)
+                except requests.exceptions.ReadTimeout:
+                    time.sleep(10)
+                
             for row in klinesT:
                 row[1] = Decimal(row[1])
                 row[2] = Decimal(row[2])
