@@ -70,6 +70,7 @@ class BinanceFutures(BinanceSpot):
         amount = BinanceFutures.truncateDevise(amount, devise)
         stopLoss = BinanceFutures.truncatePrice(stopLoss, devise)
         Logger.write("[" + devise + "][LONGSTOPLOSS][" + str(stopLoss) + "][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
+        BinanceFutures.getClient().futures_change_leverage(symbol=devise, leverage=leverage)
         order = None
         while order == None:
             try:
@@ -91,6 +92,7 @@ class BinanceFutures(BinanceSpot):
         amount = BinanceFutures.truncateDevise(amount, devise)
         stopLoss = BinanceFutures.truncatePrice(stopLoss, devise)
         Logger.write("[" + devise + "][SHORTSTOPLOSS][" + str(stopLoss) + "][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
+        BinanceFutures.getClient().futures_change_leverage(symbol=devise, leverage=leverage)
         order = None
         while order == None:
             try:
@@ -111,6 +113,7 @@ class BinanceFutures(BinanceSpot):
     def closeLongOrder(devise, amount, leverage, type=Client.FUTURE_ORDER_TYPE_MARKET):
         amount = BinanceFutures.truncateDevise(amount, devise)
         Logger.write("[" + devise + "][CLOSELONG][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
+        BinanceFutures.getClient().futures_change_leverage(symbol=devise, leverage=leverage)
         order = None
         while order == None:
             try:
@@ -128,6 +131,7 @@ class BinanceFutures(BinanceSpot):
     def closeShortOrder(devise, amount, leverage, type=Client.FUTURE_ORDER_TYPE_MARKET):
         amount = BinanceFutures.truncateDevise(amount, devise)
         Logger.write("[" + devise + "][CLOSESHORT][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
+        BinanceFutures.getClient().futures_change_leverage(symbol=devise, leverage=leverage)
         order = None
         while order == None:
             try:
