@@ -68,7 +68,7 @@ class BinanceFutures(BinanceSpot):
     @staticmethod
     def stopLossLongOrder(devise, amount, leverage, stopLoss, type=Client.FUTURE_ORDER_TYPE_STOP_MARKET):
         amount = BinanceFutures.truncateDevise(amount * leverage, devise)
-        stopLoss = BinanceFutures.truncatePrice(stopLoss * leverage, devise)
+        stopLoss = BinanceFutures.truncatePrice(stopLoss, devise)
         Logger.write("[" + devise + "][LONGSTOPLOSS][" + str(stopLoss) + "][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
         order = None
         while order == None:
@@ -80,7 +80,18 @@ class BinanceFutures(BinanceSpot):
                     timeInForce = Client.TIME_IN_FORCE_GTC,
                     quantity = amount,
                     stopPrice = stopLoss,
-                    reduceOnly = True
+                    reduceOnly = True,
+                    # parameters from real query
+                    # closePosition = True,
+                    # placeType = "position",
+                    # positionSide: "BOTH",
+                    # # quantity: 0,
+                    # side: Client.SIDE_SELL,
+                    # stopPrice: stopLoss,
+                    # symbol: devise,
+                    # timeInForce: "GTE_GTC",
+                    # type: "STOP_MARKET",
+                    # workingType: "MARK_PRICE",
                 )
             except requests.exceptions.ReadTimeout:
                 time.sleep(10)
@@ -89,7 +100,7 @@ class BinanceFutures(BinanceSpot):
     @staticmethod
     def stopLossShortOrder(devise, amount, leverage, stopLoss, type=Client.FUTURE_ORDER_TYPE_STOP_MARKET):
         amount = BinanceFutures.truncateDevise(amount * leverage, devise)
-        stopLoss = BinanceFutures.truncatePrice(stopLoss*leverage, devise)
+        stopLoss = BinanceFutures.truncatePrice(stopLoss, devise)
         Logger.write("[" + devise + "][SHORTSTOPLOSS][" + str(stopLoss) + "][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
         order = None
         while order == None:
