@@ -1,4 +1,3 @@
-from decimal import *
 
 class Order:
     ORDER_TYPE_BUY = "buy"
@@ -16,9 +15,9 @@ class Order:
             raise Exception("Class Order accept only these values for argument 'type' : " + ", ".join(self.__TYPE_ALLOWED))
         self.__id = id
         self.__type = type
-        self.__amount = Decimal(amount)
+        self.__amount = float(amount)
         self.__status = status
-        self.__price = Decimal(price)
+        self.__price = float(price)
         self.__time = time
 
     @property

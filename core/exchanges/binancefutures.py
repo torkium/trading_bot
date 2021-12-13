@@ -1,7 +1,6 @@
 from binance.enums import HistoricalKlinesType
 from binance.client import Client
 from core.exchanges.binancespot import BinanceSpot
-from decimal import *
 from math import *
 from urllib.parse import quote
 from json import dumps
@@ -10,7 +9,7 @@ import requests
 import time
 
 class BinanceFutures(BinanceSpot):
-    feesRate = Decimal(0.04/100)
+    feesRate = float(0.04/100)
     klines_type = HistoricalKlinesType.FUTURES
     client = None
 
@@ -31,7 +30,8 @@ class BinanceFutures(BinanceSpot):
 
     @staticmethod
     def longOrder(devise, amount, leverage, type=Client.FUTURE_ORDER_TYPE_MARKET):
-        amount = BinanceFutures.truncateDevise(amount * leverage, devise)
+        print("long order: devise: %s , amount: %s, leverage: %s, type: %s" % (devise, amount, leverage, type))
+        amount = BinanceFutures.truncateDevise(amount * leverage * .955, devise)
         Logger.write("[" + devise + "][LONG][" + str(leverage) + "][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
         BinanceFutures.getClient().futures_change_leverage(symbol=devise, leverage=leverage)
         order = None
@@ -49,12 +49,15 @@ class BinanceFutures(BinanceSpot):
 
     @staticmethod
     def shortOrder(devise, amount, leverage, type=Client.FUTURE_ORDER_TYPE_MARKET):
+        print("short order: devise: %s , amount: %s, leverage: %s, type: %s" % (devise, amount, leverage, type))
         amount = BinanceFutures.truncateDevise(amount * leverage, devise)
         Logger.write("[" + devise + "][SHORT][" + str(leverage) + "][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
         BinanceFutures.getClient().futures_change_leverage(symbol=devise, leverage=leverage)
         order = None
+        import binance
         while order == None:
             try:
+                Logger.write("TRY[" + devise + "][SHORT][" + str(amount) + "]", Logger.LOG_TYPE_DEBUG)
                 order = BinanceFutures.getClient().futures_create_order(
                     symbol=devise,
                     type=Client.FUTURE_ORDER_TYPE_MARKET,
@@ -63,10 +66,18 @@ class BinanceFutures(BinanceSpot):
                 )
             except requests.exceptions.ReadTimeout:
                 time.sleep(10)
+            except binance.exceptions.BinanceException as e:
+                if e.code == 2019:
+                    Logger.write("Failed margin Margin is insufficient. reduce by 5% the amount", Logger.LOG_TYPE_DEBUG)
+                    amount = amount * 0.95
+                    time.sleep(30)
+                else:
+                    raise e
         return order["orderId"]
 
     @staticmethod
     def stopLossLongOrder(devise, amount, leverage, stopLoss, type=Client.FUTURE_ORDER_TYPE_STOP_MARKET):
+        print("stop loss long order: devise: %s , amount: %s, leverage: %s, type: %s" % (devise, amount, leverage, type))
         amount = BinanceFutures.truncateDevise(amount * leverage, devise)
         stopLoss = BinanceFutures.truncatePrice(stopLoss, devise)
         Logger.write("[" + devise + "][LONGSTOPLOSS][" + str(stopLoss) + "][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
@@ -100,6 +111,7 @@ class BinanceFutures(BinanceSpot):
 
     @staticmethod
     def stopLossShortOrder(devise, amount, leverage, stopLoss, type=Client.FUTURE_ORDER_TYPE_STOP_MARKET):
+        print("stop loss short order: devise: %s , amount: %s, leverage: %s, type: %s" % (devise, amount, leverage, type))
         amount = BinanceFutures.truncateDevise(amount * leverage, devise)
         stopLoss = BinanceFutures.truncatePrice(stopLoss, devise)
         Logger.write("[" + devise + "][SHORTSTOPLOSS][" + str(stopLoss) + "][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
@@ -122,6 +134,7 @@ class BinanceFutures(BinanceSpot):
 
     @staticmethod
     def closeLongOrder(devise, amount, leverage, type=Client.FUTURE_ORDER_TYPE_MARKET):
+        print("close long order: devise: %s , amount: %s, leverage: %s, type: %s" % (devise, amount, leverage, type))
         amount = BinanceFutures.truncateDevise(amount * leverage, devise)
         Logger.write("[" + devise + "][CLOSELONG][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
         BinanceFutures.getClient().futures_change_leverage(symbol=devise, leverage=leverage)
@@ -140,6 +153,7 @@ class BinanceFutures(BinanceSpot):
 
     @staticmethod
     def closeShortOrder(devise, amount, leverage, type=Client.FUTURE_ORDER_TYPE_MARKET):
+        print("close short order: devise: %s , amount: %s, leverage: %s, type: %s" % (devise, amount, leverage, type))
         amount = BinanceFutures.truncateDevise(amount * leverage, devise)
         Logger.write("[" + devise + "][CLOSESHORT][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
         BinanceFutures.getClient().futures_change_leverage(symbol=devise, leverage=leverage)
@@ -186,6 +200,7 @@ class BinanceFutures(BinanceSpot):
 
     @staticmethod
     def closeOpenedPositions(devise, ordersIds):
+        print("close open position: devise: %s , orderIDs: %s" % (devise, orderIds))
         if len(ordersIds) > 0:
             idsString = dumps(ordersIds).replace(" ", "")
             idsString = quote(idsString)
@@ -199,6 +214,13 @@ class BinanceFutures(BinanceSpot):
                     return cancel_orders
                 except requests.exceptions.ReadTimeout:
                     time.sleep(10)
+        return None
+
+    @staticmethod
+    def closeOrder(orderId):
+        response = BinanceFutures.getClient().futures_cancel_order(orderId)
+        if 'orderId' in response:
+            return response['orderId']
         return None
 
     @staticmethod
@@ -216,16 +238,42 @@ class BinanceFutures(BinanceSpot):
         return None
 
     @staticmethod
+    def getCurrentPosition(devise):
+        currentPosition = None
+        while currentPosition == None:
+            try:
+                currentPosition = BinanceFutures.getClient().futures_position_information(symbol=devise)
+                return currentPosition[0]
+            except requests.exceptions.ReadTimeout:
+                time.sleep(10)
+        return None
+
+    def getOpenOrders(devise):
+        openOrders = None
+        while openOrders == None:
+            try:
+                openOrders = BinanceFutures.getClient().futures_get_open_orders(symbol="BTCUSDT")
+                print(openOrders)
+                return openOrders
+            except requests.exceptions.ReadTimeout:
+                time.sleep(10)
+        return None
+
+    def getAllOrder():
+        return BinanceFutures.getClient().futures_get_all_orders()
+
+
+    @staticmethod
     def getOrderStatus(order):
         return order['status']
 
     @staticmethod
     def getOrderQuantity(order):
-        return Decimal(order['executedQty'])
+        return float(order['executedQty'])
 
     @staticmethod
     def getOrderPrice(order):
-        return Decimal(order['avgPrice'])
+        return float(order['avgPrice'])
 
     @staticmethod
     def isFilledOrder(order):

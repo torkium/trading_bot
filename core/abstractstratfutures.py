@@ -1,7 +1,6 @@
 from core.abstractstrat import AbstractStrat
 from core.transaction.leverageorder import LeverageOrder
 from core.abstractindicators import AbstractIndicators
-from decimal import *
 from datetime import datetime
 from core.tools.logger import Logger
 import time
@@ -27,6 +26,26 @@ class AbstractStratFutures(AbstractStrat):
         self.minWallet = self.startWallet
         self.maxWallet = self.startWallet
         Logger.write("historic getted.", Logger.LOG_TYPE_INFO)
+
+        # print(self.exchange.getAllOrder())
+        # sys.exit()
+        # load current order in progress
+        # currentPosition = self.exchange.getOpenOrders(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency))
+
+        # print(currentPosition)
+        # if float(currentPosition['positionAmt']) != 0.0:
+        #     self.orderInProgress = LeverageOrder(
+        #         0,
+        #         currentPosition['leverage'],
+        #         LeverageOrder.ORDER_TYPE_LONG if float(currentPosition['positionAmt']) > 0.0 else LeverageOrder.ORDER_TYPE_SHORT,
+        #         float(currentPosition['positionAmt']),
+        #         currentPosition['entryPrice'],
+        #         self.exchange.ORDER_STATUS_FILLED,
+        #         currentPosition['updateTime']
+        #     )
+        #     Logger.write("Loaded current position %s %s x %s" % (currentPosition['positionAmt'], self.tradingCurrency, currentPosition['leverage']), Logger.LOG_TYPE_INFO)
+
+
         while True:
             time.sleep(self.timeToSleep)
             self.exchange.historic[self.mainTimeFrame] = self.exchange.getHistoric(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.mainTimeFrame, self.exchange.getStartHistory(self.mainTimeFrame, AbstractIndicators.MAX_PERIOD), None, True).tail(AbstractIndicators.MAX_PERIOD)
@@ -88,7 +107,7 @@ class AbstractStratFutures(AbstractStrat):
             shortCondition = self.shortOpenConditions(self.currentHistoryIndex)
             if longCondition > 0:
                 #Open Long order
-                amount = Decimal(self.wallet.base * longCondition / 100) / price
+                amount = float(self.wallet.base * longCondition / 100) / price
                 orderId = self.exchange.longOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), amount, self.leverage)
                 self.orderInProgress = LeverageOrder(orderId, self.leverage, LeverageOrder.ORDER_TYPE_LONG, amount, price, self.exchange.ORDER_STATUS_NEW, datetime.now())
                 if self.stopLossLongPrice() != None:
@@ -99,7 +118,7 @@ class AbstractStratFutures(AbstractStrat):
                 return None
             if longCondition == 0 and shortCondition > 0:
                 #Open Short order
-                amount = Decimal(self.wallet.base * shortCondition / 100) / price
+                amount = float(self.wallet.base * shortCondition / 100) / price
                 orderId = self.exchange.shortOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), amount, self.leverage)
                 self.orderInProgress = LeverageOrder(orderId, self.leverage, LeverageOrder.ORDER_TYPE_SHORT, amount, price, self.exchange.ORDER_STATUS_NEW, datetime.now())
                 if self.stopLossShortPrice() != None:
@@ -123,7 +142,8 @@ class AbstractStratFutures(AbstractStrat):
                 shortCloseCondition = self.shortCloseConditions(self.currentHistoryIndex)
                 if shortCloseCondition>0:
                     #Close short order
-                    orderId = self.exchange.closeShortOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.amount, self.leverage)
+                    # orderId = self.exchange.closeShortOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.amount, self.leverage)
+                    self.exchange.closeOrder(self.orderInProgress.__id)
                     self.exchange.closeOpenedPositions(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.linkedOrdersIds)
                     self.orderInProgress = None
                     self.waitNextClosedCandle = True
@@ -134,7 +154,7 @@ class AbstractStratFutures(AbstractStrat):
     def getPercentWalletInPosition(self, wallet):
         if self.walletInPosition == None or wallet.base == None or wallet.base == 0:
             return 0
-        return Decimal(self.walletInPosition/wallet.base)*100
+        return float(self.walletInPosition/wallet.base)*100
 
     def hasPercentWalletNotInPosition(self, percent, wallet):
         if wallet.base == None:

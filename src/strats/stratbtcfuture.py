@@ -1,6 +1,5 @@
 from core.abstractstratfutures import AbstractStratFutures
 from src.indicators.indicators import Indicators
-from decimal import *
 
 class StratBtcFuture(AbstractStratFutures):
 
@@ -14,7 +13,7 @@ class StratBtcFuture(AbstractStratFutures):
         To determine long condition.
         Must return the percent of Wallet to take position.
         """
-        if self.step == "main":     
+        if self.step == "main":
             if self.exchange.historic[self.mainTimeFrame]['EMA20EVOL'][index] > 1 and self.exchange.historic[self.mainTimeFrame]['EMATREND'][index] == 2 and self.exchange.historic[self.mainTimeFrame]['RSI'][index] < Indicators.RSI_OVERBOUGHT and self.exchange.historic[self.mainTimeFrame]['RSIEVOL'][index] > 1 and self.hasPercentWalletNotInPosition(10, self.wallet):
                 return 50
         return 0
@@ -27,11 +26,11 @@ class StratBtcFuture(AbstractStratFutures):
         """
         if self.step == "main":
             if (self.exchange.historic[self.mainTimeFrame]['EMA20EVOL'][index] == -1) or (self.exchange.historic[self.mainTimeFrame]['PRICEEVOL'][index] < -2 and self.exchange.historic[self.mainTimeFrame]['VOLUMEEVOL'][index] < -2):
-                return 100 
+                return 100
             if 100*(self.exchange.historic[self.mainTimeFrame]['close'][index] - self.orderInProgress.price)/self.orderInProgress.price < -3:
                 return 100
         return 0
-        
+
     #To determine short open condition
     def shortOpenConditions(self, index):
         """
@@ -40,9 +39,9 @@ class StratBtcFuture(AbstractStratFutures):
         """
         if self.step == "main":
             if self.exchange.historic[self.mainTimeFrame]['EMA20EVOL'][index] < -1 and self.exchange.historic[self.mainTimeFrame]['EMATREND'][index] == -2 and self.exchange.historic[self.mainTimeFrame]['RSI'][index] > Indicators.RSI_OVERSOLD and self.exchange.historic[self.mainTimeFrame]['RSIEVOL'][index] < -1 and self.hasPercentWalletNotInPosition(10, self.wallet):
-                return 50
+                return 80
         return 0
-    
+
     #To determine short close condition
     def shortCloseConditions(self, index):
         """
@@ -53,21 +52,21 @@ class StratBtcFuture(AbstractStratFutures):
             if (self.exchange.historic[self.mainTimeFrame]['EMA20EVOL'][index] == 1) or (self.exchange.historic[self.mainTimeFrame]['PRICEEVOL'][index] > 1 and self.exchange.historic[self.mainTimeFrame]['VOLUMEEVOL'][index] > 1):
                 return 100
         return 0
-    
+
     def stopLossLongPrice(self):
         """
         To determine stop loss price for long order
         Must return the price to stop loss, or none
         """
         #return None
-        stopLossPercent = Decimal(3)
+        stopLossPercent = float(3)
         return self.orderInProgress.price - self.orderInProgress.price*stopLossPercent/100
-    
+
     def stopLossShortPrice(self):
         """
         To determine stop loss price for short order
         Must return the price to stop loss, or none
         """
         #return None
-        stopLossPercent = Decimal(2)
+        stopLossPercent = float(2)
         return self.orderInProgress.price + self.orderInProgress.price*stopLossPercent/100

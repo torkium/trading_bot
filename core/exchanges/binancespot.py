@@ -4,7 +4,6 @@ from binance.enums import HistoricalKlinesType
 import requests
 import pandas as pd
 import time
-from decimal import *
 from math import *
 
 class BinanceSpot:
@@ -12,7 +11,7 @@ class BinanceSpot:
     apiSecret = None
     historic = {}
 
-    feesRate = Decimal(0.1/100)
+    feesRate = float(0.1/100)
     klines_type = HistoricalKlinesType.FUTURES
 
     devise_precision = None
@@ -35,17 +34,17 @@ class BinanceSpot:
                     klinesT = Client().get_historical_klines(devise, BinanceSpot.getTimeframe(timeframe), startDate, endDate, klines_type=BinanceSpot.klines_type)
                 except requests.exceptions.ReadTimeout:
                     time.sleep(10)
-                
+
             for row in klinesT:
-                row[1] = Decimal(row[1])
-                row[2] = Decimal(row[2])
-                row[3] = Decimal(row[3])
-                row[4] = Decimal(row[4])
-                row[5] = Decimal(row[5])
-                row[7] = Decimal(row[7])
-                row[9] = Decimal(row[9])
-                row[10] = Decimal(row[10])
-                row[11] = Decimal(row[11])
+                row[1] = float(row[1])
+                row[2] = float(row[2])
+                row[3] = float(row[3])
+                row[4] = float(row[4])
+                row[5] = float(row[5])
+                row[7] = float(row[7])
+                row[9] = float(row[9])
+                row[10] = float(row[10])
+                row[11] = float(row[11])
             #Set history as python DataFrame
             histo = pd.DataFrame(klinesT, columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_av', 'trades', 'tb_base_av', 'tb_quote_av', 'ignore' ])
 
@@ -86,7 +85,7 @@ class BinanceSpot:
             return Client.KLINE_INTERVAL_1DAY
         if timeframe == "1w":
             return Client.KLINE_INTERVAL_1WEEK
-        
+
     @staticmethod
     def getStartHistory(timeframe, maxPeriod):
         timestamp = round(time.time())
@@ -128,17 +127,17 @@ class BinanceSpot:
     def appendNewCandle(msg, timeframe, devise, max_period):
         if msg['e'] == 'kline' and msg['s'] == devise:
             kline = {
-                    'open': Decimal(msg['k']['o']),
-                    'high': Decimal(msg['k']['h']),
-                    'low': Decimal(msg['k']['l']),
-                    'close': Decimal(msg['k']['c']),
-                    'volume': Decimal(msg['k']['q']),
-                    'close_time': Decimal(msg['k']['T']),
-                    'quote_av': Decimal(msg['k']['q']),
-                    'trades': Decimal(msg['k']['n']),
-                    'tb_base_av': Decimal(msg['k']['V']),
-                    'tb_quote_av': Decimal(msg['k']['Q']),
-                    'ignore': Decimal(msg['k']['B'])
+                    'open': float(msg['k']['o']),
+                    'high': float(msg['k']['h']),
+                    'low': float(msg['k']['l']),
+                    'close': float(msg['k']['c']),
+                    'volume': float(msg['k']['q']),
+                    'close_time': float(msg['k']['T']),
+                    'quote_av': float(msg['k']['q']),
+                    'trades': float(msg['k']['n']),
+                    'tb_base_av': float(msg['k']['V']),
+                    'tb_quote_av': float(msg['k']['Q']),
+                    'ignore': float(msg['k']['B'])
             }
             df = pd.DataFrame(kline, index=[msg['k']['t']])
             df.index = pd.to_datetime(df.index, unit='ms')
@@ -152,7 +151,7 @@ class BinanceSpot:
 
     @staticmethod
     def getPrice(timeframe, index):
-        return Decimal(BinanceSpot.historic[timeframe]['close'][index])
+        return float(BinanceSpot.historic[timeframe]['close'][index])
 
     @staticmethod
     def getDevise(baseCurrency, tradeCurrency):
@@ -161,15 +160,15 @@ class BinanceSpot:
     @staticmethod
     def getOrder(devise, orderId):
         return None
-    
+
     @staticmethod
     def getOrderStatus(order):
         return None
-    
+
     @staticmethod
     def getOrderQuantity(order):
         return None
-    
+
     @staticmethod
     def getOrderPrice(order):
         return None
