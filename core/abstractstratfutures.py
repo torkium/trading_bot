@@ -16,11 +16,10 @@ class AbstractStratFutures(AbstractStrat):
         self.leverage = userConfig.strat['leverage']
         self.walletInPosition = 0
 
-    def run(self, client, userConfig):
+    def run(self, userConfig):
         #TODO : wallet need to be changed when we place order
         self.exchange.apiKey = userConfig.api['key']
         self.exchange.apiSecret = userConfig.api['secret']
-        self.client = client(self.exchange.apiKey, self.exchange.apiSecret)
         Logger.write("Getting historic, please wait...", Logger.LOG_TYPE_INFO)
         self.exchange.historic[self.mainTimeFrame] = self.exchange.getHistoric(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.mainTimeFrame, self.exchange.getStartHistory(self.mainTimeFrame, AbstractIndicators.MAX_PERIOD)).tail(AbstractIndicators.MAX_PERIOD)
         self.startWallet = self.wallet.getTotalAmount(self.exchange.historic[self.mainTimeFrame]['open'].iloc[0])

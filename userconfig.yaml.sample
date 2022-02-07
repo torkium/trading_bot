@@ -7,6 +7,7 @@ strat:
   leverage: <Your strat leverage>
   timeframe: <Your strat timeframe>
   time_to_sleep: <Check every x seconds>
+  exchange_id: <exchange name, for example binance>
 logs:
   level: <Your lo level (0 to 3)>
   console: <to show console. true or false>
