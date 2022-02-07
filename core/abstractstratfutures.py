@@ -32,9 +32,8 @@ class AbstractStratFutures(AbstractStrat):
             self.setIndicators(self.mainTimeFrame)
             if self.orderInProgress != None and self.orderInProgress.status != self.exchange.ORDER_STATUS_FILLED:
                 order = self.exchange.getOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.id)
-                if self.exchange.getOrderStatus(order) == self.exchange.ORDER_STATUS_FILLED:
+                if self.exchange.isFilledOrder(order):
                     self.orderInProgress.status = self.exchange.ORDER_STATUS_FILLED
-                    self.orderInProgress.amount = self.exchange.getOrderQuantity(order)
                     self.orderInProgress.price = self.exchange.getOrderPrice(order)
                     Logger.write("Order " + str(self.orderInProgress.id) + " is filled", Logger.LOG_TYPE_INFO)
                     Logger.write(str(self.orderInProgress), Logger.LOG_TYPE_INFO)
@@ -65,7 +64,7 @@ class AbstractStratFutures(AbstractStrat):
         if self.orderInProgress != None:
             stopLossHitted = len(self.orderInProgress.linkedOrdersIds)>0
             for orderId in self.orderInProgress.linkedOrdersIds:
-                if self.exchange.getOrderStatus(self.exchange.getOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), orderId)) != self.exchange.ORDER_STATUS_FILLED:
+                if self.exchange.getOrderStatus(self.exchange.getOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), orderId)) != self.exchange.ORDER_STATUS_CLOSED:
                     stopLossHitted = False
             if stopLossHitted:
                 Logger.write("Order " + str(self.orderInProgress.id) + " is closed because stop loss is hitted", Logger.LOG_TYPE_INFO)
@@ -87,7 +86,7 @@ class AbstractStratFutures(AbstractStrat):
             shortCondition = self.shortOpenConditions(self.currentHistoryIndex)
             if longCondition > 0:
                 #Open Long order
-                amount = Decimal(self.wallet.base * longCondition / 100) / price
+                amount = Decimal(str(self.wallet.base * longCondition / 100)) / price
                 orderId = self.exchange.longOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), amount, self.leverage)
                 self.orderInProgress = LeverageOrder(orderId, self.leverage, LeverageOrder.ORDER_TYPE_LONG, amount, price, self.exchange.ORDER_STATUS_NEW, datetime.now())
                 if self.stopLossLongPrice() != None:
@@ -98,7 +97,7 @@ class AbstractStratFutures(AbstractStrat):
                 return None
             if longCondition == 0 and shortCondition > 0:
                 #Open Short order
-                amount = Decimal(self.wallet.base * shortCondition / 100) / price
+                amount = Decimal(str(self.wallet.base * shortCondition / 100)) / price
                 orderId = self.exchange.shortOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), amount, self.leverage)
                 self.orderInProgress = LeverageOrder(orderId, self.leverage, LeverageOrder.ORDER_TYPE_SHORT, amount, price, self.exchange.ORDER_STATUS_NEW, datetime.now())
                 if self.stopLossShortPrice() != None:
@@ -133,7 +132,7 @@ class AbstractStratFutures(AbstractStrat):
     def getPercentWalletInPosition(self, wallet):
         if self.walletInPosition == None or wallet.base == None or wallet.base == 0:
             return 0
-        return Decimal(self.walletInPosition/wallet.base)*100
+        return Decimal(str(self.walletInPosition/wallet.base))*100
 
     def hasPercentWalletNotInPosition(self, percent, wallet):
         if wallet.base == None:

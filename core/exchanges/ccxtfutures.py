@@ -22,6 +22,7 @@ class CCXTFutures():
 
     ORDER_STATUS_NEW = "NEW"
     ORDER_STATUS_FILLED = "FILLED"
+    ORDER_STATUS_CLOSED = "closed"
 
     EXCHANGE_ID = None
 
@@ -39,11 +40,11 @@ class CCXTFutures():
                     time.sleep(10)
                 
             for row in candles:
-                row[1] = Decimal(row[1])
-                row[2] = Decimal(row[2])
-                row[3] = Decimal(row[3])
-                row[4] = Decimal(row[4])
-                row[5] = Decimal(row[5])
+                row[1] = Decimal(str(row[1]))
+                row[2] = Decimal(str(row[2]))
+                row[3] = Decimal(str(row[3]))
+                row[4] = Decimal(str(row[4]))
+                row[5] = Decimal(str(row[5]))
             #Set history as python DataFrame
             histo = pd.DataFrame(candles, columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume'])
 
@@ -60,8 +61,8 @@ class CCXTFutures():
         CCXTFutures.price_precision = {}
         infos = CCXTFutures.getClient().load_markets()
         for item in infos:
-            CCXTFutures.devise_precision[infos[item]['info']['symbol']] = infos[item]['info']['quantityPrecision']
-            CCXTFutures.price_precision[infos[item]['info']['symbol']] = infos[item]['info']['pricePrecision']
+            CCXTFutures.devise_precision[infos[item]['info']['symbol']] = float(infos[item]['info']['quantityPrecision'])
+            CCXTFutures.price_precision[infos[item]['info']['symbol']] = float(infos[item]['info']['pricePrecision'])
 
     @staticmethod
     def longOrder(devise, amount, leverage, type="market"):
@@ -74,7 +75,7 @@ class CCXTFutures():
                 order = CCXTFutures.getClient().create_order(devise, type, 'buy', amount, None)
             except requests.exceptions.ReadTimeout:
                 time.sleep(10)
-        return order["orderId"]
+        return order["id"]
 
     @staticmethod
     def shortOrder(devise, amount, leverage, type='market'):
@@ -87,7 +88,7 @@ class CCXTFutures():
                 order = CCXTFutures.getClient().create_order(devise, type, 'sell', amount, None)
             except requests.exceptions.ReadTimeout:
                 time.sleep(10)
-        return order["orderId"]
+        return order["id"]
 
     @staticmethod
     def stopLossLongOrder(devise, amount, leverage, stopLoss, type='stop_market'):
@@ -99,13 +100,12 @@ class CCXTFutures():
         while order == None:
             try:
                 params = {
-                    'stopPrice': stopLoss,
-                    'reduceOnly': True
+                    'stopPrice': stopLoss
                 }
                 order = CCXTFutures.getClient().create_order(devise, type, "sell", amount, None, params)
             except requests.exceptions.ReadTimeout:
                 time.sleep(10)
-        return order["orderId"]
+        return order["id"]
 
     @staticmethod
     def stopLossShortOrder(devise, amount, leverage, stopLoss, type='stop_market'):
@@ -117,13 +117,12 @@ class CCXTFutures():
         while order == None:
             try:
                 params = {
-                    'stopPrice': stopLoss,
-                    'reduceOnly': True
+                    'stopPrice': stopLoss
                 }
                 order = CCXTFutures.getClient().create_order(devise, type, "buy", amount, None, params)
             except requests.exceptions.ReadTimeout:
                 time.sleep(10)
-        return order["orderId"]
+        return order["id"]
 
     @staticmethod
     def closeLongOrder(devise, amount, leverage, type='market'):
@@ -136,7 +135,7 @@ class CCXTFutures():
                 order = CCXTFutures.getClient().create_order(devise, type, "sell", amount, None)
             except requests.exceptions.ReadTimeout:
                 time.sleep(10)
-        return order["orderId"]
+        return order["id"]
 
     @staticmethod
     def closeShortOrder(devise, amount, leverage, type='market'):
@@ -149,10 +148,11 @@ class CCXTFutures():
                 order = CCXTFutures.getClient().create_order(devise, type, "buy", amount, None)
             except requests.exceptions.ReadTimeout:
                 time.sleep(10)
-        return order["orderId"]
+        return order["id"]
 
     @staticmethod
     def orderIsLiquidated(orderId):
+        return False
         if orderId is not None:
             liquidationOrder = None
             while liquidationOrder == None:
@@ -161,7 +161,7 @@ class CCXTFutures():
                 except requests.exceptions.ReadTimeout:
                     time.sleep(10)
             for order in liquidationOrder:
-                if order['orderId'] == orderId:
+                if order['id'] == orderId:
                     return True
         return False
 
@@ -199,10 +199,7 @@ class CCXTFutures():
         order = None
         while order == None:
             try:
-                order = CCXTFutures.getClient().futures_get_order(
-                    symbol=devise,
-                    orderId=orderId
-                )
+                order = CCXTFutures.getClient().fetch_order(orderId, devise)
                 return order
             except requests.exceptions.ReadTimeout:
                 time.sleep(10)
@@ -214,15 +211,15 @@ class CCXTFutures():
 
     @staticmethod
     def getOrderQuantity(order):
-        return Decimal(order['executedQty'])
+        return Decimal(str(order['amount']))
 
     @staticmethod
     def getOrderPrice(order):
-        return Decimal(order['avgPrice'])
+        return Decimal(str(order['price']))
 
     @staticmethod
     def isFilledOrder(order):
-        return CCXTFutures.getOrderStatus(order) == CCXTFutures.ORDER_STATUS_FILLED
+        return order['amount'] == order['filled']
 
     @staticmethod
     def truncateDevise(n, devise):
@@ -306,17 +303,17 @@ class CCXTFutures():
     def appendNewCandle(msg, timeframe, devise, max_period):
         if msg['e'] == 'kline' and msg['s'] == devise:
             kline = {
-                    'open': Decimal(msg['k']['o']),
-                    'high': Decimal(msg['k']['h']),
-                    'low': Decimal(msg['k']['l']),
-                    'close': Decimal(msg['k']['c']),
-                    'volume': Decimal(msg['k']['q']),
-                    'close_time': Decimal(msg['k']['T']),
-                    'quote_av': Decimal(msg['k']['q']),
-                    'trades': Decimal(msg['k']['n']),
-                    'tb_base_av': Decimal(msg['k']['V']),
-                    'tb_quote_av': Decimal(msg['k']['Q']),
-                    'ignore': Decimal(msg['k']['B'])
+                    'open': Decimal(str(msg['k']['o'])),
+                    'high': Decimal(str(msg['k']['h'])),
+                    'low': Decimal(str(msg['k']['l'])),
+                    'close': Decimal(str(msg['k']['c'])),
+                    'volume': Decimal(str(msg['k']['q'])),
+                    'close_time': Decimal(str(msg['k']['T'])),
+                    'quote_av': Decimal(str(msg['k']['q'])),
+                    'trades': Decimal(str(msg['k']['n'])),
+                    'tb_base_av': Decimal(str(msg['k']['V'])),
+                    'tb_quote_av': Decimal(str(msg['k']['Q'])),
+                    'ignore': Decimal(str(msg['k']['B']))
             }
             df = pd.DataFrame(kline, index=[msg['k']['t']])
             df.index = pd.to_datetime(df.index, unit='ms')
@@ -330,27 +327,11 @@ class CCXTFutures():
 
     @staticmethod
     def getPrice(timeframe, index):
-        return Decimal(CCXTFutures.historic[timeframe]['close'][index])
+        return Decimal(str(CCXTFutures.historic[timeframe]['close'][index]))
 
     @staticmethod
     def getDevise(baseCurrency, tradeCurrency):
         return tradeCurrency + baseCurrency
-
-    @staticmethod
-    def getOrder(devise, orderId):
-        return None
-    
-    @staticmethod
-    def getOrderStatus(order):
-        return None
-    
-    @staticmethod
-    def getOrderQuantity(order):
-        return None
-    
-    @staticmethod
-    def getOrderPrice(order):
-        return None
 
     @staticmethod
     def truncateDevise(n, devise):

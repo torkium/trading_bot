@@ -18,6 +18,7 @@ class LeverageOrder(Order):
         if type not in self.__TYPE_ALLOWED:
             raise Exception("Class LeverageOrder accept only these values for argument 'type' : " + ", ".join(self.__TYPE_ALLOWED))
         self.__leverage = leverage
+        self.__linkedOrdersIds = []
         super().__init__(id, type, amount, price, status, time, False)
 
     @property
