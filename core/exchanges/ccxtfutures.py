@@ -36,8 +36,8 @@ class CCXTFutures():
             while candles == None:
                 try:
                     candles = CCXTFutures.getClient().fetch_ohlcv(devise, timeframe=CCXTFutures.getTimeframe(timeframe), since=startDate, limit=400)
-                except requests.exceptions.ReadTimeout:
-                    time.sleep(10)
+                except:
+                    time.sleep(20)
                 
             for row in candles:
                 row[1] = Decimal(str(row[1]))
