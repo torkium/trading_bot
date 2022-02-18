@@ -5,7 +5,7 @@ strat:
     base: <Your strat wallet base>
     trade: <Your strat wallet trade>
   leverage: <Your strat leverage>
-  timeframe: <Your strat timeframe>
+  timeframe: [<Your strat timeframe>, <Your second timeframe>]
   time_to_sleep: <Check every x seconds>
   exchange_id: <exchange name, for example binance>
 logs:
