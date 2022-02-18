@@ -41,6 +41,7 @@ class AbstractStratFutures(AbstractStrat):
                 if self.exchange.isFilledOrder(order):
                     self.orderInProgress.status = self.exchange.ORDER_STATUS_FILLED
                     self.orderInProgress.price = self.exchange.getOrderPrice(order)
+                    self.wallet.base -= self.exchange.getOrderFeeCost(order)
                     Logger.write("Order " + str(self.orderInProgress.id) + " is filled", Logger.LOG_TYPE_INFO)
                     Logger.write(str(self.orderInProgress), Logger.LOG_TYPE_INFO)
             if self.orderInProgress != None and self.exchange.orderIsLiquidated(self.orderInProgress.id):
@@ -252,7 +253,7 @@ class AbstractStratFutures(AbstractStrat):
                     #Close long order
                     orderId = self.exchange.closeLongOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.amount, self.leverage)
                     order = self.exchange.getOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), orderId)
-                    self.wallet.base += (self.orderInProgress.amount*self.orderInProgress.price) + self.orderInProgress.amount*self.orderInProgress.leverage*(self.exchange.getOrderPrice(order)-self.orderInProgress.price)-self.exchange.getOrderFeeCost(order)
+                    self.wallet.base += (self.orderInProgress.amount*self.orderInProgress.price) + self.orderInProgress.amount*self.orderInProgress.leverage*(self.exchange.getOrderPrice(order)-self.orderInProgress.price)
                     self.exchange.closeOpenedPositions(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.linkedOrdersIds)
                     Logger.write("Order " + str(self.orderInProgress.id) + " is closed because long close condition is filled", Logger.LOG_TYPE_INFO)
                     self.orderInProgress = None
@@ -264,7 +265,7 @@ class AbstractStratFutures(AbstractStrat):
                     #Close short order
                     orderId = self.exchange.closeShortOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.amount, self.leverage)
                     order = self.exchange.getOrder(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), orderId)
-                    self.wallet.base += (self.orderInProgress.amount*self.orderInProgress.price) + self.orderInProgress.amount*self.orderInProgress.leverage*(self.orderInProgress.price-self.exchange.getOrderPrice(order))-self.exchange.getOrderFeeCost(order)
+                    self.wallet.base += (self.orderInProgress.amount*self.orderInProgress.price) + self.orderInProgress.amount*self.orderInProgress.leverage*(self.orderInProgress.price-self.exchange.getOrderPrice(order))
                     self.exchange.closeOpenedPositions(self.exchange.getDevise(self.baseCurrency, self.tradingCurrency), self.orderInProgress.linkedOrdersIds)
                     Logger.write("Order " + str(self.orderInProgress.id) + " is closed because short close condition is filled", Logger.LOG_TYPE_INFO)
                     self.orderInProgress = None

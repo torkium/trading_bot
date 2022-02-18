@@ -250,7 +250,9 @@ class CCXTFutures():
 
     @staticmethod
     def getOrderFeeCost(order):
-        return Decimal(str(order['fee']['cost']))
+        if order['fee'] != None:
+            return Decimal(str(order['fee']['cost']))
+        return 0
 
     @staticmethod
     def isFilledOrder(order):
