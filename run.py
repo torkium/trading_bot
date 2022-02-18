@@ -6,5 +6,5 @@ from core.tools.logger import Logger
 """ 
 Sample code to launch strat in real mode
 """
-Core.run(Strat, Exchange, Logger, "userconfig.yaml")
-#Core.backtest(Strat, Exchange, Logger, "userconfig.yaml", "2020-06-25 02:00:00")
+#Core.run(Strat, Exchange, Logger, "userconfig.yaml")
+Core.backtest(Strat, Exchange, Logger, "userconfig.yaml", "2020-06-25 02:00:00")

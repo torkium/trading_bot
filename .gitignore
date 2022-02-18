@@ -130,4 +130,5 @@ dmypy.json
 config.yaml
 config.py
 userconfig.yaml
+backtest.csv
 logs/*
