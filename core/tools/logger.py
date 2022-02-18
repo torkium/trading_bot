@@ -12,16 +12,18 @@ class Logger:
     SHOW_CONSOLE = False
     FILENAME = "logs/log_" + datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    def write(log, type):
+    def write(log, type, date=None):
         if type <= Logger.LOG_LEVEL:
-            formatedLog = Logger.getLogFormated(log, type)
+            formatedLog = Logger.getLogFormated(log, type, date)
             with open(Logger.getFileName(type), "a+") as filout:
                 filout.write(formatedLog + "\n")
             if Logger.SHOW_CONSOLE:
                 print(formatedLog)
         return None
 
-    def getLogFormated(log, type):
+    def getLogFormated(log, type, date=None):
+        if date == None:
+            date = datetime.now()
         suffixe = ""
         if type == Logger.LOG_TYPE_DEBUG:
             suffixe = "[DEBUG]"
@@ -31,7 +33,7 @@ class Logger:
             suffixe = "[WARNING]"
         if type == Logger.LOG_TYPE_ERROR:
             suffixe = "[ERROR]"
-        return "[" + str(datetime.now()) + "]" + suffixe + f"\t{log}"
+        return "[" + str(date) + "]" + suffixe + f"\t{log}"
 
     def getFileName(type):
         return Logger.FILENAME

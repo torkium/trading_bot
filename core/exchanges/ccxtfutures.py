@@ -12,7 +12,11 @@ import pandas as pd
 class CCXTFutures():
     apiKey = None
     apiSecret = None
+    fakeMode = True
     historic = {}
+    candles = {}
+    mockedOrder = {}
+    mockPrice = None
 
     feesRate = Decimal(0.04/100)
     client = None
@@ -27,7 +31,7 @@ class CCXTFutures():
     EXCHANGE_ID = None
 
     @staticmethod
-    def getHistoric(devise, timeframe, startDate, endDate=None, renew=False):
+    def getHistoric(devise, timeframe, startDate, endDate=None, renew=False, limit=400):
         if CCXTFutures.devise_precision == None or CCXTFutures.price_precision == None:
             CCXTFutures.setPrecision()
         if timeframe not in CCXTFutures.historic or renew:
@@ -35,7 +39,7 @@ class CCXTFutures():
             candles = None
             while candles == None:
                 try:
-                    candles = CCXTFutures.getClient().fetch_ohlcv(devise, timeframe=CCXTFutures.getTimeframe(timeframe), since=startDate, limit=400)
+                    candles = CCXTFutures.getClient().fetch_ohlcv(devise, timeframe=CCXTFutures.getTimeframe(timeframe), since=startDate, limit=limit)
                 except:
                     time.sleep(20)
                 
@@ -55,6 +59,16 @@ class CCXTFutures():
             CCXTFutures.historic[timeframe] = histo
         return CCXTFutures.historic[timeframe]
 
+    def getCandleIndexFromHistory(date, history):
+        previous_index = None
+        for index in history.index:
+            if index == date:
+                return index
+            if index > date:
+                return previous_index
+            previous_index = index
+        return previous_index
+
     @staticmethod
     def setPrecision():
         CCXTFutures.devise_precision = {}
@@ -66,6 +80,8 @@ class CCXTFutures():
 
     @staticmethod
     def longOrder(devise, amount, leverage, type="market"):
+        if CCXTFutures.fakeMode:
+            return CCXTFutures.mockOrder("filled")["id"]
         amount = CCXTFutures.truncateDevise(amount * leverage, devise)
         Logger.write("[" + devise + "][LONG][" + str(leverage) + "][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
         CCXTFutures.getClient().set_leverage(leverage, devise)
@@ -79,6 +95,8 @@ class CCXTFutures():
 
     @staticmethod
     def shortOrder(devise, amount, leverage, type='market'):
+        if CCXTFutures.fakeMode:
+            return CCXTFutures.mockOrder("filled")["id"]
         amount = CCXTFutures.truncateDevise(amount * leverage, devise)
         Logger.write("[" + devise + "][SHORT][" + str(leverage) + "][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
         CCXTFutures.getClient().set_leverage(leverage, devise)
@@ -92,6 +110,8 @@ class CCXTFutures():
 
     @staticmethod
     def stopLossLongOrder(devise, amount, leverage, stopLoss, type='stop_market'):
+        if CCXTFutures.fakeMode:
+            return CCXTFutures.mockOrder("open", stopLoss)["id"]
         amount = CCXTFutures.truncateDevise(amount * leverage, devise)
         stopLoss = CCXTFutures.truncatePrice(stopLoss, devise)
         Logger.write("[" + devise + "][LONGSTOPLOSS][" + str(stopLoss) + "][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
@@ -109,6 +129,8 @@ class CCXTFutures():
 
     @staticmethod
     def stopLossShortOrder(devise, amount, leverage, stopLoss, type='stop_market'):
+        if CCXTFutures.fakeMode:
+            return CCXTFutures.mockOrder("open", stopLoss)["id"]
         amount = CCXTFutures.truncateDevise(amount * leverage, devise)
         stopLoss = CCXTFutures.truncatePrice(stopLoss, devise)
         Logger.write("[" + devise + "][SHORTSTOPLOSS][" + str(stopLoss) + "][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
@@ -126,6 +148,8 @@ class CCXTFutures():
 
     @staticmethod
     def closeLongOrder(devise, amount, leverage, type='market'):
+        if CCXTFutures.fakeMode:
+            return CCXTFutures.mockOrder("filled")["id"]
         amount = CCXTFutures.truncateDevise(amount * leverage, devise)
         Logger.write("[" + devise + "][CLOSELONG][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
         CCXTFutures.getClient().set_leverage(leverage, devise)
@@ -139,6 +163,8 @@ class CCXTFutures():
 
     @staticmethod
     def closeShortOrder(devise, amount, leverage, type='market'):
+        if CCXTFutures.fakeMode:
+            return CCXTFutures.mockOrder("filled")["id"]
         amount = CCXTFutures.truncateDevise(amount * leverage, devise)
         Logger.write("[" + devise + "][CLOSESHORT][" + str(amount) + "]", Logger.LOG_TYPE_INFO)
         CCXTFutures.getClient().set_leverage(leverage, devise)
@@ -167,6 +193,8 @@ class CCXTFutures():
 
     @staticmethod
     def hasOpenedPositions(devise):
+        if CCXTFutures.fakeMode:
+            return None
         positions = None
         while positions == None:
             try:
@@ -181,6 +209,8 @@ class CCXTFutures():
 
     @staticmethod
     def closeOpenedPositions(devise, ordersIds):
+        if CCXTFutures.fakeMode:
+            return None
         if len(ordersIds) > 0:
             idsString = dumps(ordersIds).replace(" ", "")
             idsString = quote(idsString)
@@ -189,13 +219,14 @@ class CCXTFutures():
                 while cancel_orders == None:
                     try:
                         cancel_orders = CCXTFutures.getClient().cancel_order(orderId, devise)
-                        return cancel_orders
                     except requests.exceptions.ReadTimeout:
                         time.sleep(10)
         return None
 
     @staticmethod
     def getOrder(devise, orderId):
+        if CCXTFutures.fakeMode:
+            return CCXTFutures.mockedOrder[orderId]
         order = None
         while order == None:
             try:
@@ -216,6 +247,10 @@ class CCXTFutures():
     @staticmethod
     def getOrderPrice(order):
         return Decimal(str(order['price']))
+
+    @staticmethod
+    def getOrderFeeCost(order):
+        return Decimal(str(order['fee']['cost']))
 
     @staticmethod
     def isFilledOrder(order):
@@ -294,6 +329,59 @@ class CCXTFutures():
             return (timestamp-maxPeriod*86400)*1000
         if timeframe == "1w":
             return (timestamp-maxPeriod*86400*7)*1000
+        
+    @staticmethod
+    def getMaxPeriod(timeframe, fromTimestamp, toTimestamp):
+        timestamp = toTimestamp-fromTimestamp
+        return CCXTFutures.getPeriod(timeframe, timestamp)
+        
+    @staticmethod
+    def getPeriod(timeframe, seconds):
+        if timeframe == "1m":
+            return int(seconds/60)
+        if timeframe == "5m":
+            return int(seconds/(60/5))
+        if timeframe == "15m":
+            return int(seconds/(60/15))
+        if timeframe == "30m":
+            return int(seconds/(60*30))
+        if timeframe == "1h":
+            return int(seconds/3600)
+        if timeframe == "2h":
+            return int(seconds/(3600/2))
+        if timeframe == "4h":
+            value = int(seconds/3600/4)
+            return value
+        if timeframe == "12h":
+            return int(seconds/(3600/12))
+        if timeframe == "1d":
+            return int(seconds/86400)
+        if timeframe == "1w":
+            return int(seconds/(86400/7))
+        
+    @staticmethod
+    def getSeconds(timeframe, periods):
+        if timeframe == "1m":
+            return int(periods*60)
+        if timeframe == "5m":
+            return int(periods*(60*5))
+        if timeframe == "15m":
+            return int(periods*(60*15))
+        if timeframe == "30m":
+            return int(periods*(60*30))
+        if timeframe == "1h":
+            return int(periods*3600)
+        if timeframe == "2h":
+            return int(periods*(3600*2))
+        if timeframe == "4h":
+            value = int(periods*(3600*4))
+            return value
+        if timeframe == "12h":
+            return int(periods*(3600*12))
+        if timeframe == "1d":
+            return int(periods*86400)
+        if timeframe == "1w":
+            return int(periods*(86400*7))
 
     @staticmethod
     def isCandleClosed(msg):
@@ -330,6 +418,14 @@ class CCXTFutures():
         return Decimal(str(CCXTFutures.historic[timeframe]['close'][index]))
 
     @staticmethod
+    def getHigh(timeframe, index):
+        return Decimal(str(CCXTFutures.historic[timeframe]['high'][index]))
+
+    @staticmethod
+    def getLow(timeframe, index):
+        return Decimal(str(CCXTFutures.historic[timeframe]['low'][index]))
+
+    @staticmethod
     def getDevise(baseCurrency, tradeCurrency):
         return tradeCurrency + baseCurrency
 
@@ -344,3 +440,16 @@ class CCXTFutures():
         decimals = CCXTFutures.price_precision[devise]
         r = floor(float(n)*10**decimals)/10**decimals
         return r
+
+    @staticmethod
+    def mockOrder(status, price=None):
+        if price == None:
+            price = CCXTFutures.mockPrice
+        key = str(len(CCXTFutures.mockedOrder)+1)
+        CCXTFutures.mockedOrder[key] = {
+            "id": key,
+            "status": status,
+            "price": price,
+            "fee": {"cost":0}
+        }
+        return CCXTFutures.mockedOrder[key]
